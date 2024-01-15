@@ -1,0 +1,251 @@
+{
+    Copyright (C) 2024 VCC
+    creation date: 14 Jan 2024
+    initial release date: 15 Jan 2024
+
+    author: VCC
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+    OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+}
+
+
+library UIClickerFindWindows;
+
+{$H+}
+{$IFDEF FPC}
+  //{$MODE Delphi}
+{$ENDIF}
+
+uses
+  Windows, Interfaces, Classes, SysUtils,
+  ClickerUtils, ClickerActionPlugins, DllUtils;
+
+
+type
+  TStringArr = array of string;
+
+const
+  CMaxRequiredSubControlActions = 8;
+  CRequiredSubControlPropertyNames: array[0..CMaxRequiredSubControlActions - 1] of string = (  //these are the expected FindSubControl property names, configured in plugin properties
+    'FindSubControlTopLeftCorner',
+    'FindSubControlBotLeftCorner',
+    'FindSubControlTopRightCorner',
+    'FindSubControlBotRightCorner',
+    'FindSubControlLeftEdge',
+    'FindSubControlTopEdge',
+    'FindSubControlRightEdge',
+    'FindSubControlBottomEdge'
+  );
+
+  CRequiredSubControlPropertyTypes: array[0..CMaxRequiredSubControlActions - 1] of string = (
+    'TextWithArrow',
+    'TextWithArrow',
+    'TextWithArrow',
+    'TextWithArrow',
+    'TextWithArrow',
+    'TextWithArrow',
+    'TextWithArrow',
+    'TextWithArrow'
+  );
+
+
+{ToDo:
+  - implement corners and edges processing - DecodeWindows
+  - experiment with WideChar as used by ClickerClient
+  - refactoring in ExecutePlugin
+}
+
+
+function GetAPIVersion: DWord; cdecl;
+begin
+  Result := CActionPlugin_APIVersion;
+end;
+
+
+procedure GetListOfProperties(AListOfProperties: Pointer; AListOfPropertiesLen: PDWord); cdecl;
+var
+  Properties: string;
+  i: Integer;
+begin
+  Properties := '';
+
+  for i := 0 to CMaxRequiredSubControlActions - 1 do
+    Properties := Properties + CRequiredSubControlPropertyNames[i] + '=' + CRequiredSubControlPropertyTypes[i] + #13#10;
+
+  AListOfPropertiesLen^ := SetPointedContentFromString(Properties, AListOfProperties);
+end;
+
+
+//'WinLeft_0=30' + #4#5 + 'WinTop_0=90' + #4#5 + 'WinRight_0=250' + #4#5 + 'WinBottom_0=400' + #4#5;  //this example may change
+function DecodeWindows(var AllFindSubControlExecutionResults: TStringArr): string;
+var
+  AllVars: TStringList;
+  i, j: Integer;
+  AllControl_XOffsets, AllControl_YOffsets, AllControl_MatchSource: string;
+begin
+  for j := 0 to Length(AllFindSubControlExecutionResults) - 1 do
+  begin
+    AllVars := TStringList.Create;
+    try
+      AllVars.Text := AllFindSubControlExecutionResults[j];
+
+      AllControl_XOffsets := AllVars.Values['$AllControl_XOffsets$'];       //example: 19460544
+      AllControl_YOffsets := AllVars.Values['$AllControl_YOffsets$'];       //example: 244188428
+      AllControl_MatchSource := AllVars.Values['$AllControl_MatchSource$']; //example: pmtv[0]pmtv[1]pmtv[1]
+
+      //ToDo:
+      //match corners and edges
+    finally
+      AllVars.Free;
+    end;
+
+  end;
+
+  Result := 'In work...';
+end;
+
+
+procedure GetAllRequiredFindSubControlActionNames(APluginSettings: TStringList; var AAllRequiredFindSubControlNames: TStringArr);
+var
+  i, j: Integer;
+begin
+  for i := 0 to APluginSettings.Count - 1 do   //assume more properties are there, besides FindSubControl action names for corners and edges
+    for j := 0 to CMaxRequiredSubControlActions - 1 do
+      if APluginSettings.Names[i] = CRequiredSubControlPropertyNames[j] then
+      begin
+        SetLength(AAllRequiredFindSubControlNames, Length(AAllRequiredFindSubControlNames) + 1);
+        AAllRequiredFindSubControlNames[Length(AAllRequiredFindSubControlNames) - 1] := APluginSettings.ValueFromIndex[i];
+        Break;
+      end;
+end;
+
+
+//ToDo:   refactoring
+function ExecutePlugin(APluginReference: Pointer;
+                       AListOfPluginSettings: Pointer;
+                       AListOfPluginSettingsLen: PDWord;
+
+                       AOnActionPlugin_GetActionCount: TOnActionPlugin_GetActionCount;
+                       AOnActionPlugin_GetActionInfoByIndex: TOnActionPlugin_GetActionInfoByIndex;
+                       AOnActionPlugin_ExecuteAction: TOnActionPlugin_ExecuteAction;
+                       AOnActionPlugin_GetAllTemplateVars: TOnActionPlugin_GetAllTemplateVars;
+                       AOnActionPlugin_SetTemplateVar: TOnActionPlugin_SetTemplateVar): Boolean; cdecl;
+var
+  ActionCount, i, j: Integer;
+  ActionType: TClkAction;
+  ActionTypeDWord, NameLengthDWord, ListOfPluginSettingsLen: DWord;
+  s, Buffer: string;
+  ActionNamePtr, AllTemplateVarsPtr: Pointer;
+  ResName, ResValue, PluginSettingsStr, AllVarsStr: string;
+  PluginSettings: TStringList;
+  AllRequiredFindSubControlNames: TStringArr;
+  AllFindSubControlExecutionResults: TStringArr;
+begin
+  Result := False;
+
+  ActionCount := AOnActionPlugin_GetActionCount(APluginReference);
+  if ActionCount = 0 then
+    Exit;
+
+  ResValue := '';
+  ResName := '$PluginError$';
+  AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+  ResName := '$AllControl_XOffsets$';
+  AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+  ResName := '$AllControl_YOffsets$';
+  AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+  ListOfPluginSettingsLen := AListOfPluginSettingsLen^;
+
+  PluginSettings := TStringList.Create;
+  try
+    SetLength(PluginSettingsStr, CMaxSharedStringLength);
+    SetPointedContentToString(AListOfPluginSettings, PluginSettingsStr);
+    SetLength(PluginSettingsStr, ListOfPluginSettingsLen);
+    PluginSettings.Text := PluginSettingsStr;
+    GetAllRequiredFindSubControlActionNames(PluginSettings, AllRequiredFindSubControlNames);
+
+    s := 'unset action';
+    for i := 0 to ActionCount - 1 do
+    begin
+      SetLength(Buffer, CMaxSharedStringLength + 1);
+      ActionNamePtr := @Buffer[1];
+      NameLengthDWord := 0;
+
+      AOnActionPlugin_GetActionInfoByIndex(APluginReference, i, ActionNamePtr, @NameLengthDWord, @ActionTypeDWord);
+      SetPointedContentToString(ActionNamePtr, s);
+      SetLength(s, NameLengthDWord);
+
+      if ActionTypeDWord <> $FFFFFFFF then
+      begin
+        ActionType := TClkAction(ActionTypeDWord);
+
+        if ActionType = acFindSubControl then
+          for j := 0 to CMaxRequiredSubControlActions - 1 do
+            if s = AllRequiredFindSubControlNames[j] then
+            begin
+              if not AOnActionPlugin_ExecuteAction(APluginReference, @s[1]) then
+              begin
+                //ResName := CActionPlugin_ExecutionResultErrorVar;
+                //ResValue := 'One of the required FindSubControl actions has failed: ' + s;  //example
+                //AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+                //Exit;
+              end;
+
+              SetLength(Buffer, CMaxSharedStringLength + 1);
+              AllTemplateVarsPtr := @Buffer[1];
+              NameLengthDWord := 0;
+
+              AOnActionPlugin_GetAllTemplateVars(APluginReference, AllTemplateVarsPtr, @NameLengthDWord);  //decode action execution results
+
+              SetPointedContentToString(AllTemplateVarsPtr, AllVarsStr);
+              SetLength(AllVarsStr, NameLengthDWord);
+
+              SetLength(AllFindSubControlExecutionResults, Length(AllFindSubControlExecutionResults) + 1);
+              AllFindSubControlExecutionResults[Length(AllFindSubControlExecutionResults) - 1] := AllVarsStr;
+            end;
+      end;
+    end;   //for
+
+    if Length(AllFindSubControlExecutionResults) <> CMaxRequiredSubControlActions then
+    begin
+      ResName := CActionPlugin_ExecutionResultErrorVar;
+      ResValue := 'Not all the required FindSubControl actions are found in the current template.  PluginSettings: ' + PluginSettingsStr;
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+      Exit;
+    end;
+
+    ResName := CActionPlugin_ExecutionResultVar;
+    ResValue := DecodeWindows(AllFindSubControlExecutionResults);
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+  finally
+    PluginSettings.Free;
+  end;
+
+  Result := True;
+end;
+
+
+exports
+  GetAPIVersion,
+  GetListOfProperties,
+  ExecutePlugin;
+
+begin
+end.
+
