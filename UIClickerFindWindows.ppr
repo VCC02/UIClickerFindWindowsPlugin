@@ -39,7 +39,9 @@ type
 
 const
   CMaxRequiredSubControlActions = 8;
-  CRequiredSubControlPropertyNames: array[0..CMaxRequiredSubControlActions - 1] of string = (  //these are the expected FindSubControl property names, configured in plugin properties
+  CPropertiesCount = CMaxRequiredSubControlActions + 1;
+
+  CRequiredSubControlPropertyNames: array[0..CPropertiesCount - 1] of string = (  //these are the expected FindSubControl property names, configured in plugin properties
     'FindSubControlTopLeftCorner',
     'FindSubControlBotLeftCorner',
     'FindSubControlTopRightCorner',
@@ -47,10 +49,12 @@ const
     'FindSubControlLeftEdge',
     'FindSubControlTopEdge',
     'FindSubControlRightEdge',
-    'FindSubControlBottomEdge'
+    'FindSubControlBottomEdge',
+    'Reserved'
   );
 
-  CRequiredSubControlPropertyTypes: array[0..CMaxRequiredSubControlActions - 1] of string = (
+  //See TOIEditorType datatype from ObjectInspectorFrame.pas, for valid values
+  CRequiredSubControlPropertyTypes: array[0..CPropertiesCount - 1] of string = (
     'TextWithArrow',
     'TextWithArrow',
     'TextWithArrow',
@@ -58,7 +62,8 @@ const
     'TextWithArrow',
     'TextWithArrow',
     'TextWithArrow',
-    'TextWithArrow'
+    'TextWithArrow',
+    'BooleanCombo'
   );
 
 
@@ -82,7 +87,7 @@ var
 begin
   Properties := '';
 
-  for i := 0 to CMaxRequiredSubControlActions - 1 do
+  for i := 0 to CPropertiesCount - 1 do
     Properties := Properties + CRequiredSubControlPropertyNames[i] + '=' + CRequiredSubControlPropertyTypes[i] + #13#10;
 
   AListOfPropertiesLen^ := SetPointedContentFromString(Properties, AListOfProperties);
@@ -158,7 +163,12 @@ begin
 
   ActionCount := AOnActionPlugin_GetActionCount(APluginReference);
   if ActionCount = 0 then
+  begin
+    ResName := CActionPlugin_ExecutionResultErrorVar;
+    ResValue := 'This plugin does not run on an empty template.';
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
     Exit;
+  end;
 
   ResValue := '';
   ResName := '$PluginError$';
