@@ -22,17 +22,17 @@ PrimitiveName="Line"
 Primitive=Line
 X1=0
 Y1=0
-X2=7
+X2=6
 Y2=0
 ShowEndpointPixel=1
 
 [Primitive_2]
 PrimitiveName="Line"
 Primitive=Line
-X1=7
+X1=6
 Y1=0
-X2=7
-Y2=7
+X2=6
+Y2=6
 ShowEndpointPixel=1
 
 [Primitive_3]
@@ -56,8 +56,8 @@ PrimitiveName="Rect"
 Primitive=Rect
 X1=0
 Y1=1
-X2=6
-Y2=7
+X2=5
+Y2=6
 ExtendToEndpointCorner=1
 
 

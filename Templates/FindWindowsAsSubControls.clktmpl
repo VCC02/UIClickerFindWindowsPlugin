@@ -1,8 +1,21 @@
 [Actions]
-Count=17
+Count=18
 Version=2
 
 [Action_0]
+ActionName=Init Edges width and height
+Action=SetVar
+ActionTimeout=0
+ActionEnabled=1
+ActionCondition=
+BreakpointExists=0
+BreakpointEnabled=0
+BreakpointCondition=
+ListOfVarNames=$TE_Width$$LE_Height$
+ListOfVarValues=3030
+ListOfVarEvalBefore=
+
+[Action_1]
 ActionName="ExecApp"
 Action=ExecApp
 ActionTimeout=0
@@ -19,7 +32,7 @@ CurrentDir=
 UseInheritHandles=0
 NoConsole=0
 
-[Action_1]
+[Action_2]
 ActionName="Plugin"
 Action=Plugin
 ActionTimeout=0
@@ -31,7 +44,7 @@ BreakpointCondition=
 FileName=$AppDir$\..\UIClickerFindWindowsPlugin\lib\i386-win32\UIClickerFindWindows.dll
 ListOfPropertiesAndValues=FindSubControlTopLeftCorner=FindSubControlTopLeftCornerFindSubControlBotLeftCorner=FindSubControlBotLeftCornerFindSubControlTopRightCorner=FindSubControlTopRightCornerFindSubControlBotRightCorner=FindSubControlBotRightCornerFindSubControlLeftEdge=FindSubControlLeftEdgeFindSubControlTopEdge=FindSubControlTopEdgeFindSubControlRightEdge=FindSubControlRightEdgeFindSubControlBottomEdge=FindSubControlBottomEdgeParentFindControl=Find window of exe with screenshotBorderThicknessList=Reserved=
 
-[Action_2]
+[Action_3]
 ActionName=Find window of exe with screenshot
 Action=FindControl
 ActionTimeout=3000
@@ -98,7 +111,7 @@ FastSearchAllowedColorErrorCount=10
 IgnoredColors=
 SleepySearch=0
 
-[Action_3]
+[Action_4]
 ActionName=Overwrite with Desktop settings
 Action=SetVar
 ActionTimeout=0
@@ -111,7 +124,7 @@ ListOfVarNames=$Control_Handle$$Control_Left$$Control_Top$$Control_Right$
 ListOfVarValues=000$Screen_Width$$Screen_Height$$Screen_Width$$Screen_Height$
 ListOfVarEvalBefore=01111
 
-[Action_4]
+[Action_5]
 ActionName=Bring to front
 Action=WindowOperations
 ActionTimeout=0
@@ -128,7 +141,7 @@ NewHeight=
 NewPositionEnabled=0
 NewSizeEnabled=0
 
-[Action_5]
+[Action_6]
 ActionName="Sleep"
 Action=Sleep
 ActionTimeout=0
@@ -139,7 +152,7 @@ BreakpointEnabled=0
 BreakpointCondition=
 Value=100
 
-[Action_6]
+[Action_7]
 ActionName=FindSubControlTopLeftCorner
 Action=FindSubControl
 ActionTimeout=1000
@@ -206,7 +219,7 @@ FastSearchAllowedColorErrorCount=10
 IgnoredColors=
 SleepySearch=0
 
-[Action_7]
+[Action_8]
 ActionName=Cache TopLeft corner
 Action=SetVar
 ActionTimeout=0
@@ -219,7 +232,7 @@ ListOfVarNames=$TL_Left$$TL_Top$$TL_Right$$TL_Bottom$$TL_Width$$TL_Hei
 ListOfVarValues=$Control_Left$$Control_Top$$Control_Right$$Control_Bottom$$Control_Width$$Control_Height$$Control_Text$$Control_Class$$Control_Handle$
 ListOfVarEvalBefore=111111111
 
-[Action_8]
+[Action_9]
 ActionName=FindSubControlBotLeftCorner
 Action=FindSubControl
 ActionTimeout=1000
@@ -268,25 +281,25 @@ MatchBitmapAlgorithm_Grid_YMultipleOf=1
 MatchBitmapAlgorithm_Grid_XOffset=0
 MatchBitmapAlgorithm_Grid_YOffset=0
 InitialRectangle.Left=$Control_Left$
-InitialRectangle.Top=$Control_Bottom$
+InitialRectangle.Top=$Control_Top$
 InitialRectangle.Right=$Control_Left$
 InitialRectangle.Bottom=$Control_Bottom$
 UseWholeScreen=0
 InitialRectangle.LeftOffset=0
-InitialRectangle.TopOffset=-42
-InitialRectangle.RightOffset=33
+InitialRectangle.TopOffset=177
+InitialRectangle.RightOffset=345
 InitialRectangle.BottomOffset=0
 StartSearchingWithCachedControl=0
 CachedControlLeft=
 CachedControlTop=
 MatchPrimitiveFiles=$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowBotLeftCornerActive.pmtv$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowBotLeftCorner.pmtv
-GetAllControls=0
+GetAllControls=1
 UseFastSearch=1
 FastSearchAllowedColorErrorCount=10
 IgnoredColors=
 SleepySearch=0
 
-[Action_9]
+[Action_10]
 ActionName=Cache BotLeft corner
 Action=SetVar
 ActionTimeout=0
@@ -299,7 +312,7 @@ ListOfVarNames=$BL_Left$$BL_Top$$BL_Right$$BL_Bottom$$BL_Width$$BL_Hei
 ListOfVarValues=$Control_Left$$Control_Top$$Control_Right$$Control_Bottom$$Control_Width$$Control_Height$$Control_Text$$Control_Class$$Control_Handle$
 ListOfVarEvalBefore=111111111
 
-[Action_10]
+[Action_11]
 ActionName=FindSubControlTopRightCorner
 Action=FindSubControl
 ActionTimeout=1000
@@ -366,7 +379,7 @@ FastSearchAllowedColorErrorCount=10
 IgnoredColors=
 SleepySearch=0
 
-[Action_11]
+[Action_12]
 ActionName=FindSubControlBotRightCorner
 Action=FindSubControl
 ActionTimeout=1000
@@ -415,25 +428,25 @@ MatchBitmapAlgorithm_Grid_YMultipleOf=1
 MatchBitmapAlgorithm_Grid_XOffset=0
 MatchBitmapAlgorithm_Grid_YOffset=0
 InitialRectangle.Left=$Control_Left$
-InitialRectangle.Top=$Control_Bottom$
+InitialRectangle.Top=$Control_Top$
 InitialRectangle.Right=$Control_Left$
 InitialRectangle.Bottom=$Control_Bottom$
 UseWholeScreen=0
 InitialRectangle.LeftOffset=0
-InitialRectangle.TopOffset=-42
-InitialRectangle.RightOffset=33
+InitialRectangle.TopOffset=178
+InitialRectangle.RightOffset=905
 InitialRectangle.BottomOffset=0
 StartSearchingWithCachedControl=0
 CachedControlLeft=
 CachedControlTop=
 MatchPrimitiveFiles=$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowBotRightCornerActive.pmtv$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowBotRightCorner.pmtv
-GetAllControls=0
+GetAllControls=1
 UseFastSearch=1
 FastSearchAllowedColorErrorCount=10
 IgnoredColors=
 SleepySearch=0
 
-[Action_12]
+[Action_13]
 ActionName=Compute Left edge height
 Action=SetVar
 ActionTimeout=0
@@ -446,7 +459,7 @@ ListOfVarNames=$LE_Height$$LE_Height$
 ListOfVarValues=$Diff($BL_Top$,$TL_Top$)$$Diff($LE_Height$,7)$
 ListOfVarEvalBefore=11
 
-[Action_13]
+[Action_14]
 ActionName=FindSubControlLeftEdge
 Action=FindSubControl
 ActionTimeout=1000
@@ -507,13 +520,13 @@ StartSearchingWithCachedControl=0
 CachedControlLeft=
 CachedControlTop=
 MatchPrimitiveFiles=$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowLeftEdgeActive.pmtv$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowLeftEdge.pmtv
-GetAllControls=0
+GetAllControls=1
 UseFastSearch=1
 FastSearchAllowedColorErrorCount=10
 IgnoredColors=
 SleepySearch=0
 
-[Action_14]
+[Action_15]
 ActionName=FindSubControlRightEdge
 Action=FindSubControl
 ActionTimeout=1000
@@ -574,13 +587,13 @@ StartSearchingWithCachedControl=0
 CachedControlLeft=
 CachedControlTop=
 MatchPrimitiveFiles=$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowRightEdgeActive.pmtv$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowRightEdge.pmtv
-GetAllControls=0
+GetAllControls=1
 UseFastSearch=1
 FastSearchAllowedColorErrorCount=10
 IgnoredColors=
 SleepySearch=0
 
-[Action_15]
+[Action_16]
 ActionName=FindSubControlTopEdge
 Action=FindSubControl
 ActionTimeout=1000
@@ -641,13 +654,13 @@ StartSearchingWithCachedControl=0
 CachedControlLeft=
 CachedControlTop=
 MatchPrimitiveFiles=$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowTopEdgeActive.pmtv$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowTopEdge.pmtv
-GetAllControls=0
+GetAllControls=1
 UseFastSearch=1
 FastSearchAllowedColorErrorCount=10
 IgnoredColors=
 SleepySearch=0
 
-[Action_16]
+[Action_17]
 ActionName=FindSubControlBottomEdge
 Action=FindSubControl
 ActionTimeout=1000
@@ -708,7 +721,7 @@ StartSearchingWithCachedControl=0
 CachedControlLeft=
 CachedControlTop=
 MatchPrimitiveFiles=$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowBotEdgeActive.pmtv$AppDir$\..\UIClickerFindWindowsPlugin\Templates\WindowBotEdge.pmtv
-GetAllControls=0
+GetAllControls=1
 UseFastSearch=1
 FastSearchAllowedColorErrorCount=10
 IgnoredColors=
