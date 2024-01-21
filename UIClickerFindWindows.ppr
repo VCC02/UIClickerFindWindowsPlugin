@@ -57,6 +57,7 @@ const
   CPropertiesCount = CMaxRequiredSubControlActions + CAdditionalPropertiesCount;
 
   CParentFindControlPropertyName = 'ParentFindControl';
+  CBorderThicknessPropertyName = 'BorderThickness';
 
   CRequiredSubControlPropertyNames: array[0..CPropertiesCount - 1] of string = (  //these are the expected FindSubControl property names, configured in plugin properties
     'FindSubControlTopLeftCorner',
@@ -69,7 +70,7 @@ const
     'FindSubControlBottomEdge',
 
     CParentFindControlPropertyName,  //This action is called before every FindSubControl action above. It can also be a CallTemplate action (with FindControl and FindSubControl). It is required to prepare the $Control_Left$ and $Control_Top$ vars for every FindSubControl.
-    'BorderThicknessList',
+    CBorderThicknessPropertyName,
     'Reserved'
   );
 
@@ -89,11 +90,20 @@ const
     'BooleanCombo'
   );
 
-  CDefaultBorderThickness = 5;
+  CDefaultBorderThickness = 6;
 
+  CActionPlugin_ExecutionResultVar_XOffset = '$DecodedWindows_XOffset$';
+  CActionPlugin_ExecutionResultVar_YOffset = '$DecodedWindows_YOffset$';
+  CActionPlugin_ExecutionResultVar_Width = '$DecodedWindows_Control_Width$';
+  CActionPlugin_ExecutionResultVar_Height = '$DecodedWindows_Control_Height$';
+
+  CActionPlugin_ExecutionResultVar_Control_Lefts = '$DecodedWindows_Control_Lefts$';
+  CActionPlugin_ExecutionResultVar_Control_Tops = '$DecodedWindows_Control_Tops$';
+  CActionPlugin_ExecutionResultVar_Control_Rights = '$DecodedWindows_Control_Rights$';
+  CActionPlugin_ExecutionResultVar_Control_Bottoms = '$DecodedWindows_Control_Bottom$';
 
 {ToDo:
-  - implement corners and edges processing - DecodeWindows
+ - [in work] - implement corners and edges processing - DecodeWindows
   - experiment with WideChar as used by ClickerClient
   - refactoring in ExecutePlugin
   - handle windows which are of the same width and x position, or of the same height and y position, (overlapped or not)
@@ -155,21 +165,21 @@ begin
 end;
 
 
-//function IndexOfTopLeftCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer): Integer;
-//var
-//  i: Integer;
-//begin
-//  Result := -1;
-//
-//  for i := 0 to Length(AWindowFeaturesArr) - 1 do
-//    if (AWindowFeaturesArr[i].TopLeftCorner.X = AXOffset) and
-//       (AWindowFeaturesArr[i].TopLeftCorner.Y = AYOffset) and
-//       (AWindowFeaturesArr[i].TopLeftCornerSrcIdx = ASrcIdx) then
-//    begin
-//      Result := i;
-//      Break;
-//    end;
-//end;
+function IndexOfTopLeftCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+
+  for i := 0 to Length(AWindowFeaturesArr) - 1 do
+    if (AWindowFeaturesArr[i].TopLeftCorner.X = AXOffset) and
+       (AWindowFeaturesArr[i].TopLeftCorner.Y = AYOffset) and
+       (AWindowFeaturesArr[i].TopLeftCornerSrcIdx = ASrcIdx) then
+    begin
+      Result := i;
+      Break;
+    end;
+end;
 
 
 function IndexOfBotLeftCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer): Integer;
@@ -206,21 +216,21 @@ begin
 end;
 
 
-//function IndexOfBotRightCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer): Integer;
-//var
-//  i: Integer;
-//begin
-//  Result := -1;
-//
-//  for i := 0 to Length(AWindowFeaturesArr) - 1 do
-//    if (AWindowFeaturesArr[i].BotRightCorner.X = AXOffset) and
-//       (AWindowFeaturesArr[i].BotRightCorner.Y = AYOffset) and
-//       (AWindowFeaturesArr[i].BotRightCornerSrcIdx = ASrcIdx) then
-//    begin
-//      Result := i;
-//      Break;
-//    end;
-//end;
+function IndexOfBotRightCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+
+  for i := 0 to Length(AWindowFeaturesArr) - 1 do
+    if (AWindowFeaturesArr[i].BotRightCorner.X = AXOffset) and
+       (AWindowFeaturesArr[i].BotRightCorner.Y = AYOffset) and
+       (AWindowFeaturesArr[i].BotRightCornerSrcIdx = ASrcIdx) then
+    begin
+      Result := i;
+      Break;
+    end;
+end;
 
 
 procedure InitWindowFeatures(var AWindowFeatures: TWindowFeatures);
@@ -254,18 +264,135 @@ begin
 end;
 
 
+procedure DeleteItemFromWindowFeaturesArr(var AWindowFeaturesArr: TWindowFeaturesArr; AIndex: Integer);
+var
+  i: Integer;
+begin
+  for i := AIndex to Length(AWindowFeaturesArr) - 2 do
+    AWindowFeaturesArr[i] := AWindowFeaturesArr[i + 1];
+
+  SetLength(AWindowFeaturesArr, Length(AWindowFeaturesArr) - 1);
+end;
+
+
+procedure GetValidItemsFromWindowFeaturesArr(var AWindowFeaturesArr, AValidWindowFeaturesArr: TWindowFeaturesArr);
+var
+  i: Integer;
+begin
+  for i := 0 to Length(AWindowFeaturesArr) - 1 do
+    if AvailableCornersCountInWindow(AWindowFeaturesArr[i]) >= 3 then
+    begin
+      SetLength(AValidWindowFeaturesArr, Length(AValidWindowFeaturesArr) + 1);
+      AValidWindowFeaturesArr[Length(AValidWindowFeaturesArr) - 1] := AWindowFeaturesArr[i];
+    end;
+end;
+
+
+function IndexOfWindowFeaturesItem(var AWindowFeaturesArr: TWindowFeaturesArr; AItem: TWindowFeatures; AExcludeIndex: Integer): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := 0 to Length(AWindowFeaturesArr) - 1 do
+    if i <> AExcludeIndex then
+      if (AWindowFeaturesArr[i].TopLeftCorner = AItem.TopLeftCorner) and
+         (AWindowFeaturesArr[i].BotLeftCorner = AItem.BotLeftCorner) and
+         (AWindowFeaturesArr[i].TopRightCorner = AItem.TopRightCorner) and
+         (AWindowFeaturesArr[i].BotRightCorner = AItem.BotRightCorner) and
+         (AWindowFeaturesArr[i].TopLeftCornerSrcIdx = AItem.TopLeftCornerSrcIdx) and
+         (AWindowFeaturesArr[i].BotLeftCornerSrcIdx = AItem.BotLeftCornerSrcIdx) and
+         (AWindowFeaturesArr[i].TopRightCornerSrcIdx = AItem.TopRightCornerSrcIdx) and
+         (AWindowFeaturesArr[i].BotRightCornerSrcIdx = AItem.BotRightCornerSrcIdx) then
+      begin
+        Result := i;
+        Exit;
+      end;
+end;
+
+
+//This procedure assumes that AItem is valid, i.e. it contain at least 3 corners.
+procedure FillInMissingCorner(var AItem: TWindowFeatures);
+begin
+  if AItem.TopLeftCornerSrcIdx = -1 then
+  begin
+    AItem.TopLeftCorner.X := AItem.BotLeftCorner.X;
+    AItem.TopLeftCorner.Y := AItem.TopRightCorner.Y;
+    AItem.TopLeftCornerSrcIdx := AItem.BotLeftCornerSrcIdx;
+    Exit;
+  end;
+
+  if AItem.BotLeftCornerSrcIdx = -1 then
+  begin
+    AItem.BotLeftCorner.X := AItem.TopLeftCorner.X;
+    AItem.BotLeftCorner.Y := AItem.BotRightCorner.Y;
+    AItem.BotLeftCornerSrcIdx := AItem.TopLeftCornerSrcIdx;
+    Exit;
+  end;
+
+  if AItem.TopRightCornerSrcIdx = -1 then
+  begin
+    AItem.TopRightCorner.X := AItem.BotRightCorner.X;
+    AItem.TopRightCorner.Y := AItem.TopLeftCorner.Y;
+    AItem.TopRightCornerSrcIdx := AItem.BotRightCornerSrcIdx;
+    Exit;
+  end;
+
+  if AItem.BotRightCornerSrcIdx = -1 then
+  begin
+    AItem.BotRightCorner.X := AItem.TopRightCorner.X;
+    AItem.BotRightCorner.Y := AItem.BotLeftCorner.Y;
+    AItem.BotRightCornerSrcIdx := AItem.TopRightCornerSrcIdx;
+    Exit;
+  end;
+end;
+
+
+//This procedure assumes that AWindowFeaturesArr has valid items, i.e. they contain at least 3 corners.
+procedure MergeWindowFeaturesArrDuplicates(var AWindowFeaturesArr, ADeDup: TWindowFeaturesArr);
+var
+  i, DupIdx: Integer;
+begin
+  for i := 0 to Length(AWindowFeaturesArr) - 1 do
+    FillInMissingCorner(AWindowFeaturesArr[i]);
+
+  SetLength(ADeDup, 0);
+  for i := Length(AWindowFeaturesArr) - 1 downto 0 do
+  begin
+    DupIdx := IndexOfWindowFeaturesItem(AWindowFeaturesArr, AWindowFeaturesArr[i], i);
+
+    if DupIdx > -1 then
+      DeleteItemFromWindowFeaturesArr(AWindowFeaturesArr, DupIdx);
+  end;
+
+  //reverse the array, so it looks better
+  SetLength(ADeDup, Length(AWindowFeaturesArr));
+  for i := 0 to Length(AWindowFeaturesArr) - 1 do
+    ADeDup[Length(ADeDup) - i - 1] := AWindowFeaturesArr[i];
+end;
+
+
+type
+  TDecodedWindowsResults = record
+    ResultsX, ResultsY, ResultsW, ResultsH: string;
+    ControlLefts, ControlTops, ControlRights, ControlBottoms: string;
+  end;
+
+
 //'WinLeft_0=30' + #4#5 + 'WinTop_0=90' + #4#5 + 'WinRight_0=250' + #4#5 + 'WinBottom_0=400' + #4#5;  //this example may change
-procedure DecodeWindows(var AllFindSubControlExecutionResults: TStringArr; out ResultsX, ResultsY, ResultsW, ResultsH: string);
+procedure DecodeWindows(var AllFindSubControlExecutionResults: TStringArr; AControl_Left, AControl_Top, ABorderThickness: Integer; out ADecodedWindowsResults: TDecodedWindowsResults);
 var
   AllVars, XOffsets, YOffsets, MatchSource: TStringList;
   i, j: Integer;
+  CornerIndex: Integer;
   AllControl_XOffsets, AllControl_YOffsets, AllControl_MatchSource: string;
-  WindowFeaturesArr: TWindowFeaturesArr;
+  WindowFeaturesArr, ValidWindowFeaturesArr: TWindowFeaturesArr;
 
   TopLeftCorner_XOffsetsIntArr, TopLeftCorner_YOffsetsIntArr, TopLeftCorner_SrcIdx: TIntArr;
   BotLeftCorner_XOffsetsIntArr, BotLeftCorner_YOffsetsIntArr, BotLeftCorner_SrcIdx: TIntArr;
   TopRightCorner_XOffsetsIntArr, TopRightCorner_YOffsetsIntArr, TopRightCorner_SrcIdx: TIntArr;
   BotRightCorner_XOffsetsIntArr, BotRightCorner_YOffsetsIntArr, BotRightCorner_SrcIdx: TIntArr;
+
+  //DbgStr: string;
 begin
   for j := 0 to Length(AllFindSubControlExecutionResults) - 1 do
   begin
@@ -311,68 +438,125 @@ begin
   //matching TopLeft corner with BotLeft, then TopRight
   for i := 0 to Length(TopLeftCorner_XOffsetsIntArr) - 1 do
   begin
+    CornerIndex := IndexOfTopLeftCorner(WindowFeaturesArr, TopLeftCorner_XOffsetsIntArr[i], TopLeftCorner_YOffsetsIntArr[i], TopLeftCorner_SrcIdx[i]);
     for j := 0 to Length(BotLeftCorner_XOffsetsIntArr) - 1 do
       if (TopLeftCorner_XOffsetsIntArr[i] = BotLeftCorner_XOffsetsIntArr[j]) and
-         (TopLeftCorner_SrcIdx[i] = BotLeftCorner_SrcIdx[j]) then
+         (TopLeftCorner_SrcIdx[i] = BotLeftCorner_SrcIdx[j]) then   //the same SrcIdx means the two corners were found with the same FindSubControl settings.
       begin
-        SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
-        InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
+        if CornerIndex = -1 then
+        begin
+          SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
+          InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
 
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.X := TopLeftCorner_XOffsetsIntArr[i];
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.Y := TopLeftCorner_YOffsetsIntArr[i];
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCornerSrcIdx := TopLeftCorner_SrcIdx[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.X := TopLeftCorner_XOffsetsIntArr[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.Y := TopLeftCorner_YOffsetsIntArr[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCornerSrcIdx := TopLeftCorner_SrcIdx[i];
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.X := BotLeftCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.Y := BotLeftCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCornerSrcIdx := BotLeftCorner_SrcIdx[j];
+        end
+        else
+        begin
+          WindowFeaturesArr[CornerIndex].BotLeftCorner.X := BotLeftCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].BotLeftCorner.Y := BotLeftCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].BotLeftCornerSrcIdx := BotLeftCorner_SrcIdx[j];
+        end;
       end;
 
+    //CornerIndex has to be updated again here:
+    CornerIndex := IndexOfTopLeftCorner(WindowFeaturesArr, TopLeftCorner_XOffsetsIntArr[i], TopLeftCorner_YOffsetsIntArr[i], TopLeftCorner_SrcIdx[i]);
     for j := 0 to Length(TopRightCorner_YOffsetsIntArr) - 1 do
       if (TopLeftCorner_YOffsetsIntArr[i] = TopRightCorner_YOffsetsIntArr[j]) and
          (TopLeftCorner_SrcIdx[i] = TopRightCorner_SrcIdx[j]) then
       begin
-        SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
-        InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
+        if CornerIndex = -1 then
+        begin
+          SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
+          InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
 
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.X := TopLeftCorner_XOffsetsIntArr[i];
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.Y := TopLeftCorner_YOffsetsIntArr[i];
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCornerSrcIdx := TopLeftCorner_SrcIdx[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.X := TopLeftCorner_XOffsetsIntArr[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.Y := TopLeftCorner_YOffsetsIntArr[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCornerSrcIdx := TopLeftCorner_SrcIdx[i];
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.X := TopRightCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.Y := TopRightCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCornerSrcIdx := TopRightCorner_SrcIdx[j];
+        end
+        else
+        begin
+          WindowFeaturesArr[CornerIndex].TopRightCorner.X := TopRightCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].TopRightCorner.Y := TopRightCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].TopRightCornerSrcIdx := TopRightCorner_SrcIdx[j];
+        end;
       end;
   end; //for i
 
   //matching BotRight corner with BotLeft, then TopRight
   for i := 0 to Length(BotRightCorner_XOffsetsIntArr) - 1 do
   begin
+    CornerIndex := IndexOfBotRightCorner(WindowFeaturesArr, BotRightCorner_XOffsetsIntArr[i], BotRightCorner_YOffsetsIntArr[i], BotRightCorner_SrcIdx[i]);
     for j := 0 to Length(BotLeftCorner_XOffsetsIntArr) - 1 do
       if (BotRightCorner_YOffsetsIntArr[i] = BotLeftCorner_YOffsetsIntArr[j]) and
          (BotRightCorner_SrcIdx[i] = BotLeftCorner_SrcIdx[j]) then
       begin
-        SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
-        InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
+        if CornerIndex = -1 then
+        begin
+          SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
+          InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
 
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.X := BotRightCorner_XOffsetsIntArr[i];
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.Y := BotRightCorner_YOffsetsIntArr[i];
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCornerSrcIdx := BotRightCorner_SrcIdx[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.X := BotRightCorner_XOffsetsIntArr[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.Y := BotRightCorner_YOffsetsIntArr[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCornerSrcIdx := BotRightCorner_SrcIdx[i];
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.X := BotLeftCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.Y := BotLeftCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCornerSrcIdx := BotLeftCorner_SrcIdx[j];
+        end
+        else
+        begin
+          WindowFeaturesArr[CornerIndex].BotLeftCorner.X := BotLeftCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].BotLeftCorner.Y := BotLeftCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].BotLeftCornerSrcIdx := BotLeftCorner_SrcIdx[j];
+        end;
       end;
 
+    CornerIndex := IndexOfBotRightCorner(WindowFeaturesArr, BotRightCorner_XOffsetsIntArr[i], BotRightCorner_YOffsetsIntArr[i], BotRightCorner_SrcIdx[i]);
     for j := 0 to Length(TopRightCorner_YOffsetsIntArr) - 1 do
       if (BotRightCorner_XOffsetsIntArr[i] = TopRightCorner_XOffsetsIntArr[j]) and
          (BotRightCorner_SrcIdx[i] = TopRightCorner_SrcIdx[j]) then
       begin
-        SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
-        InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
+        if CornerIndex = -1 then
+        begin
+          SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
+          InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
 
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.X := BotRightCorner_XOffsetsIntArr[i];
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.Y := BotRightCorner_YOffsetsIntArr[i];
-        WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCornerSrcIdx := BotRightCorner_SrcIdx[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.X := BotRightCorner_XOffsetsIntArr[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.Y := BotRightCorner_YOffsetsIntArr[i];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCornerSrcIdx := BotRightCorner_SrcIdx[i];
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.X := TopRightCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.Y := TopRightCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCornerSrcIdx := TopRightCorner_SrcIdx[j];
+        end
+        else
+        begin
+          WindowFeaturesArr[CornerIndex].TopRightCorner.X := TopRightCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].TopRightCorner.Y := TopRightCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].TopRightCornerSrcIdx := TopRightCorner_SrcIdx[j];
+        end;
       end;
   end; //for i
-
-  //use IndexOfTopLeftCorner functions   //if IndexOfBotRightCorner();
 
   //matching BotLeft corner with TopLeft, then BotRight
   for i := 0 to Length(BotLeftCorner_XOffsetsIntArr) - 1 do
   begin
+    CornerIndex := IndexOfBotLeftCorner(WindowFeaturesArr, BotLeftCorner_XOffsetsIntArr[i], BotLeftCorner_YOffsetsIntArr[i], BotLeftCorner_SrcIdx[i]);
     for j := 0 to Length(TopLeftCorner_XOffsetsIntArr) - 1 do
       if (BotLeftCorner_XOffsetsIntArr[i] = TopLeftCorner_XOffsetsIntArr[j]) and
          (BotLeftCorner_XOffsetsIntArr[i] = TopLeftCorner_SrcIdx[j]) then
-        if IndexOfBotLeftCorner(WindowFeaturesArr, BotLeftCorner_XOffsetsIntArr[i], BotLeftCorner_YOffsetsIntArr[i], BotLeftCorner_SrcIdx[i]) = -1 then
+      begin
+        if CornerIndex = -1 then
         begin
           SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
           InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
@@ -380,12 +564,25 @@ begin
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.X := BotLeftCorner_XOffsetsIntArr[i];
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.Y := BotLeftCorner_YOffsetsIntArr[i];
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCornerSrcIdx := BotLeftCorner_SrcIdx[i];
-        end;
 
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.X := TopLeftCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.Y := TopLeftCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCornerSrcIdx := TopLeftCorner_SrcIdx[j];
+        end
+        else
+        begin
+          WindowFeaturesArr[CornerIndex].TopLeftCorner.X := TopLeftCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].TopLeftCorner.Y := TopLeftCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].TopLeftCornerSrcIdx := TopLeftCorner_SrcIdx[j];
+        end;
+      end;
+
+    CornerIndex := IndexOfBotLeftCorner(WindowFeaturesArr, BotLeftCorner_XOffsetsIntArr[i], BotLeftCorner_YOffsetsIntArr[i], BotLeftCorner_SrcIdx[i]);
     for j := 0 to Length(BotRightCorner_YOffsetsIntArr) - 1 do
       if (BotLeftCorner_YOffsetsIntArr[i] = BotRightCorner_YOffsetsIntArr[j]) and
          (BotLeftCorner_SrcIdx[i] = BotRightCorner_SrcIdx[j]) then
-        if IndexOfBotLeftCorner(WindowFeaturesArr, BotLeftCorner_XOffsetsIntArr[i], BotLeftCorner_YOffsetsIntArr[i], BotLeftCorner_SrcIdx[i]) = -1 then
+      begin
+        if CornerIndex = -1 then
         begin
           SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
           InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
@@ -393,16 +590,29 @@ begin
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.X := BotLeftCorner_XOffsetsIntArr[i];
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.Y := BotLeftCorner_YOffsetsIntArr[i];
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCornerSrcIdx := BotLeftCorner_SrcIdx[i];
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.X := BotRightCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.Y := BotRightCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCornerSrcIdx := BotRightCorner_SrcIdx[j];
+        end
+        else
+        begin
+          WindowFeaturesArr[CornerIndex].BotRightCorner.X := BotRightCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].BotRightCorner.Y := BotRightCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].BotRightCornerSrcIdx := BotRightCorner_SrcIdx[j];
         end;
+      end;
   end;
 
   //matching TopRight corner with TopLeft, then BotRight
   for i := 0 to Length(TopRightCorner_YOffsetsIntArr) - 1 do
   begin
+    CornerIndex := IndexOfTopRightCorner(WindowFeaturesArr, TopRightCorner_XOffsetsIntArr[i], TopRightCorner_YOffsetsIntArr[i], TopRightCorner_SrcIdx[i]);
     for j := 0 to Length(TopLeftCorner_XOffsetsIntArr) - 1 do
       if (TopRightCorner_YOffsetsIntArr[i] = TopLeftCorner_YOffsetsIntArr[j]) and
          (TopRightCorner_SrcIdx[i] = TopLeftCorner_SrcIdx[j]) then
-        if IndexOfTopRightCorner(WindowFeaturesArr, TopRightCorner_XOffsetsIntArr[i], TopRightCorner_YOffsetsIntArr[i], TopRightCorner_SrcIdx[i]) = -1 then
+      begin
+        if CornerIndex = -1 then
         begin
           SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
           InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
@@ -410,12 +620,25 @@ begin
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.X := TopRightCorner_XOffsetsIntArr[i];
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.Y := TopRightCorner_YOffsetsIntArr[i];
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCornerSrcIdx := TopRightCorner_SrcIdx[i];
-        end;
 
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.X := TopLeftCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.Y := TopLeftCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCornerSrcIdx := TopLeftCorner_SrcIdx[j];
+        end
+        else
+        begin
+          WindowFeaturesArr[CornerIndex].TopLeftCorner.X := TopLeftCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].TopLeftCorner.Y := TopLeftCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].TopLeftCornerSrcIdx := TopLeftCorner_SrcIdx[j];
+        end;
+      end;
+
+    CornerIndex := IndexOfTopRightCorner(WindowFeaturesArr, TopRightCorner_XOffsetsIntArr[i], TopRightCorner_YOffsetsIntArr[i], TopRightCorner_SrcIdx[i]);
     for j := 0 to Length(TopRightCorner_XOffsetsIntArr) - 1 do
       if (TopRightCorner_XOffsetsIntArr[i] = BotRightCorner_XOffsetsIntArr[j]) and
          (TopRightCorner_SrcIdx[i] = BotRightCorner_SrcIdx[j]) then
-        if IndexOfTopRightCorner(WindowFeaturesArr, TopRightCorner_XOffsetsIntArr[i], TopRightCorner_YOffsetsIntArr[i], TopRightCorner_SrcIdx[i]) = -1 then
+      begin
+        if CornerIndex = -1 then
         begin
           SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
           InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
@@ -423,22 +646,63 @@ begin
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.X := TopRightCorner_XOffsetsIntArr[i];
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.Y := TopRightCorner_YOffsetsIntArr[i];
           WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCornerSrcIdx := TopRightCorner_SrcIdx[i];
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.X := BotRightCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCorner.Y := BotRightCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotRightCornerSrcIdx := BotRightCorner_SrcIdx[j];
+        end
+        else
+        begin
+          WindowFeaturesArr[CornerIndex].BotRightCorner.X := BotRightCorner_XOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].BotRightCorner.Y := BotRightCorner_YOffsetsIntArr[j];
+          WindowFeaturesArr[CornerIndex].BotRightCornerSrcIdx := BotRightCorner_SrcIdx[j];
         end;
+      end;
   end;
 
-  ResultsX := '';
-  ResultsY := '';
-  ResultsW := '';
-  ResultsH := '';
+  GetValidItemsFromWindowFeaturesArr(WindowFeaturesArr, ValidWindowFeaturesArr);
+  MergeWindowFeaturesArrDuplicates(ValidWindowFeaturesArr, WindowFeaturesArr);
+
+  ADecodedWindowsResults.ResultsX := '';
+  ADecodedWindowsResults.ResultsY := '';
+  ADecodedWindowsResults.ResultsW := '';
+  ADecodedWindowsResults.ResultsH := '';
+
+  ADecodedWindowsResults.ControlLefts := '';
+  ADecodedWindowsResults.ControlTops := '';
+  ADecodedWindowsResults.ControlRights := '';
+  ADecodedWindowsResults.ControlBottoms := '';
+
+  //DbgStr := '';
 
   for i := 0 to Length(WindowFeaturesArr) - 1 do
-    if AvailableCornersCountInWindow(WindowFeaturesArr[i]) >= 3 then
-    begin
-      ResultsX := ResultsX + IntToStr(WindowFeaturesArr[i].TopLeftCorner.X) + #4#5;
-      ResultsY := ResultsY + IntToStr(WindowFeaturesArr[i].TopLeftCorner.Y) + #4#5;
-      ResultsW := ResultsW + IntToStr(WindowFeaturesArr[i].TopLeftCorner.X + WindowFeaturesArr[i].TopRightCorner.X + CDefaultBorderThickness) + #4#5;
-      ResultsH := ResultsH + IntToStr(WindowFeaturesArr[i].TopLeftCorner.Y + WindowFeaturesArr[i].BotLeftCorner.Y + CDefaultBorderThickness) + #4#5;
-    end;
+  begin
+    //DbgStr := DbgStr + 'TL = ' + IntToStr(WindowFeaturesArr[i].TopLeftCorner.X) + ':' +
+    //                             IntToStr(WindowFeaturesArr[i].TopLeftCorner.Y) + ' : ' +
+    //                             IntToStr(WindowFeaturesArr[i].TopLeftCornerSrcIdx) + '.   ' +
+    //                   'BL = ' + IntToStr(WindowFeaturesArr[i].BotLeftCorner.X) + ':' +
+    //                             IntToStr(WindowFeaturesArr[i].BotLeftCorner.Y) + ' : ' +
+    //                             IntToStr(WindowFeaturesArr[i].BotLeftCornerSrcIdx) + '.   ' +
+    //                   'TR = ' + IntToStr(WindowFeaturesArr[i].TopRightCorner.X) + ':' +
+    //                             IntToStr(WindowFeaturesArr[i].TopRightCorner.Y) + ' : ' +
+    //                             IntToStr(WindowFeaturesArr[i].TopRightCornerSrcIdx) + '.   ' +
+    //                   'BR = ' + IntToStr(WindowFeaturesArr[i].BotRightCorner.X) + ':' +
+    //                             IntToStr(WindowFeaturesArr[i].BotRightCorner.Y) + ' : ' +
+    //                             IntToStr(WindowFeaturesArr[i].BotRightCornerSrcIdx) + '.   ' + #13#10;
+
+    //Requires a bif of refactoring:
+    ADecodedWindowsResults.ResultsX := ADecodedWindowsResults.ResultsX + IntToStr(WindowFeaturesArr[i].TopLeftCorner.X) + #4#5;
+    ADecodedWindowsResults.ResultsY := ADecodedWindowsResults.ResultsY + IntToStr(WindowFeaturesArr[i].TopLeftCorner.Y) + #4#5;
+    ADecodedWindowsResults.ResultsW := ADecodedWindowsResults.ResultsW + IntToStr(WindowFeaturesArr[i].TopLeftCorner.X + WindowFeaturesArr[i].TopRightCorner.X + ABorderThickness) + #4#5;
+    ADecodedWindowsResults.ResultsH := ADecodedWindowsResults.ResultsH + IntToStr(WindowFeaturesArr[i].TopLeftCorner.Y + WindowFeaturesArr[i].BotLeftCorner.Y + ABorderThickness) + #4#5;
+
+    ADecodedWindowsResults.ControlLefts := ADecodedWindowsResults.ControlLefts + IntToStr(WindowFeaturesArr[i].TopLeftCorner.X + AControl_Left) + #4#5;
+    ADecodedWindowsResults.ControlTops := ADecodedWindowsResults.ControlTops + IntToStr(WindowFeaturesArr[i].TopLeftCorner.Y + AControl_Top) + #4#5;
+    ADecodedWindowsResults.ControlRights := ADecodedWindowsResults.ControlRights + IntToStr(WindowFeaturesArr[i].TopRightCorner.X + ABorderThickness + AControl_Left) + #4#5;
+    ADecodedWindowsResults.ControlBottoms := ADecodedWindowsResults.ControlBottoms + IntToStr(WindowFeaturesArr[i].BotLeftCorner.Y + ABorderThickness + AControl_Top) + #4#5;
+  end;
+
+  //MessageBox(0, PChar(DbgStr), 'Plugin', MB_ICONINFORMATION);
 end;
 
 
@@ -474,10 +738,11 @@ var
   s, Buffer: string;
   ActionNamePtr, AllTemplateVarsPtr: Pointer;
   ResName, ResValue, PluginSettingsStr, AllVarsStr: string;
-  PluginSettings: TStringList;
+  PluginSettings, ListOfAllVars: TStringList;
   AllRequiredFindSubControlNames: TStringArr;
   AllFindSubControlExecutionResults: TStringArr;
-  ResultsX, ResultsY, ResultsW, ResultsH: string;
+  Control_Left, Control_Top, BorderThickness: Integer;
+  DecodedWindowsResults: TDecodedWindowsResults;
 begin
   Result := False;
 
@@ -509,7 +774,38 @@ begin
     SetLength(PluginSettingsStr, ListOfPluginSettingsLen);
     PluginSettings.Text := PluginSettingsStr;
     GetAllRequiredFindSubControlActionNames(PluginSettings, AllRequiredFindSubControlNames);
+    BorderThickness := StrToIntDef(PluginSettings.ValueFromIndex[9], CDefaultBorderThickness);
 
+    //Calling FindControl or CallTemplate, to update $Control_Left$ and $Control_Top$
+    if PluginSettings.ValueFromIndex[8] <> '' then
+      if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[8][1]) then  //call FindControl or CallTemplate, before each FindSubControl
+      begin
+        ResName := CActionPlugin_ExecutionResultErrorVar;
+        ResValue := 'The required "' + PluginSettings.ValueFromIndex[8] + '" action has failed on updating $Control_Left$ and $Control_Top$.';  //example
+        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+        Exit;
+      end;
+
+    //Get Control_Left and Control_Top values
+    SetLength(Buffer, CMaxSharedStringLength + 1);
+    AllTemplateVarsPtr := @Buffer[1];
+    NameLengthDWord := 0;
+
+    AOnActionPlugin_GetAllTemplateVars(APluginReference, AllTemplateVarsPtr, @NameLengthDWord);  //decode action execution results
+
+    SetPointedContentToString(AllTemplateVarsPtr, AllVarsStr);
+    SetLength(AllVarsStr, NameLengthDWord);
+
+    ListOfAllVars := TStringList.Create;
+    try
+      ListOfAllVars.Text := AllVarsStr;
+      Control_Left := StrToIntDef(ListOfAllVars.Values['$Control_Left$'], 0);
+      Control_Top := StrToIntDef(ListOfAllVars.Values['$Control_Top$'], 0);
+    finally
+      ListOfAllVars.Free;
+    end;
+
+    //Executing FindSubControl actions
     s := 'unset action';
     for i := 0 to ActionCount - 1 do
     begin
@@ -533,7 +829,7 @@ begin
                 if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[8][1]) then  //call FindControl or CallTemplate, before each FindSubControl
                 begin
                   ResName := CActionPlugin_ExecutionResultErrorVar;
-                  ResValue := 'The required "' + PluginSettings.ValueFromIndex[8] + '" action has failed: ' + s;  //example
+                  ResValue := 'The required "' + PluginSettings.ValueFromIndex[8] + '" action has failed on: ' + s;  //example
                   AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
                   Exit;
                 end;
@@ -569,19 +865,33 @@ begin
       Exit;
     end;
 
-    DecodeWindows(AllFindSubControlExecutionResults, ResultsX, ResultsY, ResultsW, ResultsH);
+    //Actual window decoding:
+    DecodeWindows(AllFindSubControlExecutionResults, Control_Left, Control_Top, BorderThickness, DecodedWindowsResults);
 
+    //Set results
     ResName := CActionPlugin_ExecutionResultVar_XOffset;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResultsX[1]);
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsX[1]);
 
     ResName := CActionPlugin_ExecutionResultVar_YOffset;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResultsY[1]);
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsY[1]);
 
     ResName := CActionPlugin_ExecutionResultVar_Width;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResultsW[1]);
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsW[1]);
 
     ResName := CActionPlugin_ExecutionResultVar_Height;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResultsH[1]);
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsH[1]);
+
+    ResName := CActionPlugin_ExecutionResultVar_Control_Lefts;
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlLefts[1]);
+
+    ResName := CActionPlugin_ExecutionResultVar_Control_Tops;
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlTops[1]);
+
+    ResName := CActionPlugin_ExecutionResultVar_Control_Rights;
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlRights[1]);
+
+    ResName := CActionPlugin_ExecutionResultVar_Control_Bottoms;
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlBottoms[1]);
   finally
     PluginSettings.Free;
   end;
