@@ -730,7 +730,8 @@ function ExecutePlugin(APluginReference: Pointer;
                        AOnActionPlugin_GetActionInfoByIndex: TOnActionPlugin_GetActionInfoByIndex;
                        AOnActionPlugin_ExecuteAction: TOnActionPlugin_ExecuteAction;
                        AOnActionPlugin_GetAllTemplateVars: TOnActionPlugin_GetAllTemplateVars;
-                       AOnActionPlugin_SetTemplateVar: TOnActionPlugin_SetTemplateVar): Boolean; cdecl;
+                       AOnActionPlugin_SetTemplateVar: TOnActionPlugin_SetTemplateVar;
+                       AOnActionPlugin_DebugPoint: TOnActionPlugin_DebugPoint): Boolean; cdecl;
 var
   ActionCount, i, j: Integer;
   ActionType: TClkAction;
@@ -745,6 +746,11 @@ var
   DecodedWindowsResults: TDecodedWindowsResults;
 begin
   Result := False;
+  DefaultOnActionPlugin_DebugPoint := AOnActionPlugin_DebugPoint;
+  DefaultPluginReference := APluginReference;
+
+  if not DbgPoint('Entering ExecutePlugin', '') then     //see ClkDbgSym.ppr for expected statement formats
+    Exit;
 
   ActionCount := AOnActionPlugin_GetActionCount(APluginReference);
   if ActionCount = 0 then
@@ -773,8 +779,15 @@ begin
     SetPointedContentToString(AListOfPluginSettings, PluginSettingsStr);
     SetLength(PluginSettingsStr, ListOfPluginSettingsLen);
     PluginSettings.Text := PluginSettingsStr;
+
+    if not DbgPoint('Get BorderThickness', '', IsBreakPoint) then
+      Exit;
+
     GetAllRequiredFindSubControlActionNames(PluginSettings, AllRequiredFindSubControlNames);
     BorderThickness := StrToIntDef(PluginSettings.ValueFromIndex[9], CDefaultBorderThickness);
+
+    if not DbgPoint('After getting BorderThickness', 'Read BorderThickness: ' + IntToStr(BorderThickness)) then
+      Exit;
 
     //Calling FindControl or CallTemplate, to update $Control_Left$ and $Control_Top$
     if PluginSettings.ValueFromIndex[8] <> '' then
@@ -805,6 +818,9 @@ begin
       ListOfAllVars.Free;
     end;
 
+    if not DbgPoint('After getting $Control_Left$ and $Control_Top$', 'Read $Control_Left$ and $Control_Top$: ' + IntToStr(Control_Left) + ' : ' + IntToStr(Control_Top)) then
+      Exit;
+
     //Executing FindSubControl actions
     s := 'unset action';
     for i := 0 to ActionCount - 1 do
@@ -821,10 +837,13 @@ begin
       begin
         ActionType := TClkAction(ActionTypeDWord);
 
-        if ActionType = acFindSubControl then
+        if ActionType in [acFindSubControl, acPlugin] then
           for j := 0 to CMaxRequiredSubControlActions - 1 do
             if s = AllRequiredFindSubControlNames[j] then
             begin
+              if not DbgPoint('Calling FindControl or CallTemplate', PluginSettings.ValueFromIndex[8], IsBreakPoint) then
+                Exit;
+
               if PluginSettings.ValueFromIndex[8] <> '' then
                 if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[8][1]) then  //call FindControl or CallTemplate, before each FindSubControl
                 begin
@@ -862,8 +881,14 @@ begin
       ResName := CActionPlugin_ExecutionResultErrorVar;
       ResValue := 'Not all the required FindSubControl actions are found in the current template.  PluginSettings: ' + PluginSettingsStr;
       AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+      DbgPoint('Invalid template', ResValue, IsBreakPoint);
+
       Exit;
     end;
+
+    if not DbgPoint('Decoding windows', '') then
+      Exit;
 
     //Actual window decoding:
     DecodeWindows(AllFindSubControlExecutionResults, Control_Left, Control_Top, BorderThickness, DecodedWindowsResults);
@@ -895,6 +920,8 @@ begin
   finally
     PluginSettings.Free;
   end;
+
+  DbgPoint('Exiting plugin', 'done');
 
   Result := True;
 end;

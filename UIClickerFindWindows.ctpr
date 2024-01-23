@@ -77,6 +77,10 @@
       <ConfigFile>
         <WriteConfigFilePath Value=""/>
       </ConfigFile>
+      <ExecuteBefore>
+        <Command Value="&quot;$(ProjPath)..\UIClicker\Tools\ClkDbgSym\ClkDbgSym.exe&quot; &quot;$(ProjPath)lib\$(TargetCPU)-$(TargetOS)\$NameOnly($(ProjFile)).DbgSym&quot; &quot;$(ProjPath)$NameOnly($(ProjFile)).ppr&quot;"/>
+        <CompileReasons Run="False"/>
+      </ExecuteBefore>
     </Other>
   </CompilerOptions>
   <Debugging>
