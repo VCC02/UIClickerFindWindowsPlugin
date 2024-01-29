@@ -778,190 +778,92 @@ var
   DecodedWindowsResults: TDecodedWindowsResults;
 begin
   Result := False;
-  DefaultOnActionPlugin_DebugPoint := AOnActionPlugin_DebugPoint;
-  DefaultPluginReference := APluginReference;
-
-  if not DbgPoint('Entering ExecutePlugin', '') then     //see ClkDbgSym.ppr for expected statement formats
-    Exit;
-
-  ActionCount := AOnActionPlugin_GetActionCount(APluginReference);
-  if ActionCount = 0 then
-  begin
-    ResName := CActionPlugin_ExecutionResultErrorVar;
-    ResValue := 'This plugin does not run on an empty template.';
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-    Exit;
-  end;
-
-  ResValue := '';
-  ResName := '$PluginError$';
-  AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-  ResName := '$AllControl_XOffsets$';
-  AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-  ResName := '$AllControl_YOffsets$';
-  AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-  ListOfPluginSettingsLen := AListOfPluginSettingsLen^;
-
-  PluginSettings := TStringList.Create;
   try
-    SetLength(PluginSettingsStr, CMaxSharedStringLength);
-    SetPointedContentToString(AListOfPluginSettings, PluginSettingsStr);
-    SetLength(PluginSettingsStr, ListOfPluginSettingsLen);
-    PluginSettings.Text := PluginSettingsStr;
+    DefaultOnActionPlugin_DebugPoint := AOnActionPlugin_DebugPoint;
+    DefaultPluginReference := APluginReference;
 
-    if not DbgPoint('Get BorderThickness', '', IsBreakPoint) then
+    if not DbgPoint('Entering ExecutePlugin', '') then     //see ClkDbgSym.ppr for expected statement formats
       Exit;
 
-    GetAllRequiredFindSubControlActionNames(PluginSettings, AllRequiredFindSubControlNames);
-    BorderThickness := StrToIntDef(PluginSettings.ValueFromIndex[CBorderThickness_PropIndex], CDefaultBorderThickness);
-    MatchWindowEdges := PluginSettings.ValueFromIndex[CMatchWindowEdges_PropIndex];
-
-    if not DbgPoint('After getting BorderThickness', 'Read BorderThickness: ' + IntToStr(BorderThickness)) then
+    ActionCount := AOnActionPlugin_GetActionCount(APluginReference);
+    if ActionCount = 0 then
+    begin
+      ResName := CActionPlugin_ExecutionResultErrorVar;
+      ResValue := 'This plugin does not run on an empty template.';
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
       Exit;
+    end;
 
-    //Calling FindControl or CallTemplate, to update $Control_Left$ and $Control_Top$
-    if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
-      if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
+    ResValue := '';
+    ResName := '$PluginError$';
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+    ResName := '$AllControl_XOffsets$';
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+    ResName := '$AllControl_YOffsets$';
+    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+    ListOfPluginSettingsLen := AListOfPluginSettingsLen^;
+
+    PluginSettings := TStringList.Create;
+    try
+      SetLength(PluginSettingsStr, CMaxSharedStringLength);
+      SetPointedContentToString(AListOfPluginSettings, PluginSettingsStr);
+      SetLength(PluginSettingsStr, ListOfPluginSettingsLen);
+      PluginSettings.Text := PluginSettingsStr;
+
+      if not DbgPoint('Get BorderThickness', '', IsBreakPoint) then
+        Exit;
+
+      if PluginSettings.Count < CPropertiesCount then
       begin
         ResName := CActionPlugin_ExecutionResultErrorVar;
-        ResValue := 'The required "' + PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] + '" action has failed on updating $Control_Left$ and $Control_Top$.';
+        ResValue := 'The plugin is configured with a wrong number of properties: ' + IntToStr(PluginSettings.Count) + ', instead of the expected, ' + IntToStr(CPropertiesCount) + '.';
         AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
         Exit;
       end;
 
-    //Get Control_Left and Control_Top values
-    SetLength(Buffer, CMaxSharedStringLength + 1);
-    AllTemplateVarsPtr := @Buffer[1];
-    NameLengthDWord := 0;
+      GetAllRequiredFindSubControlActionNames(PluginSettings, AllRequiredFindSubControlNames);
+      BorderThickness := StrToIntDef(PluginSettings.ValueFromIndex[CBorderThickness_PropIndex], CDefaultBorderThickness);
+      MatchWindowEdges := PluginSettings.ValueFromIndex[CMatchWindowEdges_PropIndex];
 
-    AOnActionPlugin_GetAllTemplateVars(APluginReference, AllTemplateVarsPtr, @NameLengthDWord);  //decode action execution results
+      if not DbgPoint('After getting BorderThickness', 'Read BorderThickness: ' + IntToStr(BorderThickness)) then
+        Exit;
 
-    SetPointedContentToString(AllTemplateVarsPtr, AllVarsStr);
-    SetLength(AllVarsStr, NameLengthDWord);
+      //Calling FindControl or CallTemplate, to update $Control_Left$ and $Control_Top$
+      if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
+        if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
+        begin
+          ResName := CActionPlugin_ExecutionResultErrorVar;
+          ResValue := 'The required "' + PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] + '" action has failed on updating $Control_Left$ and $Control_Top$.';
+          AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+          Exit;
+        end;
 
-    ListOfAllVars := TStringList.Create;
-    try
-      ListOfAllVars.Text := AllVarsStr;
-      Control_Left := StrToIntDef(ListOfAllVars.Values['$Control_Left$'], 0);
-      Control_Top := StrToIntDef(ListOfAllVars.Values['$Control_Top$'], 0);
-    finally
-      ListOfAllVars.Free;
-    end;
-
-    if not DbgPoint('After getting $Control_Left$ and $Control_Top$', 'Read $Control_Left$ and $Control_Top$: ' + IntToStr(Control_Left) + ' : ' + IntToStr(Control_Top)) then
-      Exit;
-
-    //Executing FindSubControl actions, for getting window corners
-    s := 'unset action';
-    for i := 0 to ActionCount - 1 do
-    begin
+      //Get Control_Left and Control_Top values
       SetLength(Buffer, CMaxSharedStringLength + 1);
-      ActionNamePtr := @Buffer[1];
+      AllTemplateVarsPtr := @Buffer[1];
       NameLengthDWord := 0;
 
-      AOnActionPlugin_GetActionInfoByIndex(APluginReference, i, ActionNamePtr, @NameLengthDWord, @ActionTypeDWord);
-      SetPointedContentToString(ActionNamePtr, s);
-      SetLength(s, NameLengthDWord);
+      AOnActionPlugin_GetAllTemplateVars(APluginReference, AllTemplateVarsPtr, @NameLengthDWord);  //decode action execution results
 
-      if ActionTypeDWord <> $FFFFFFFF then
-      begin
-        ActionType := TClkAction(ActionTypeDWord);
+      SetPointedContentToString(AllTemplateVarsPtr, AllVarsStr);
+      SetLength(AllVarsStr, NameLengthDWord);
 
-        if ActionType in [acFindSubControl, acPlugin] then
-          for j := CFindSubControlTopLeftCorner_PropIndex to CFindSubControlBotRightCorner_PropIndex do  //corners:  without "- 1"
-            if s = AllRequiredFindSubControlNames[j] then
-            begin
-              if not DbgPoint('Calling FindControl or CallTemplate (corners)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex], IsBreakPoint) then
-                Exit;
-
-              if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
-                if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
-                begin
-                  ResName := CActionPlugin_ExecutionResultErrorVar;
-                  ResValue := 'The required "' + PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] + '" action has failed on: ' + s;  //example
-                  AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-                  Exit;
-                end;
-
-              if not AOnActionPlugin_ExecuteAction(APluginReference, @s[1]) then
-              begin
-                //ResName := CActionPlugin_ExecutionResultErrorVar;
-                //ResValue := 'One of the required FindSubControl actions has failed: ' + s;  //example
-                //AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-                //Exit;
-              end;
-
-              SetLength(Buffer, CMaxSharedStringLength + 1);
-              AllTemplateVarsPtr := @Buffer[1];
-              NameLengthDWord := 0;
-
-              AOnActionPlugin_GetAllTemplateVars(APluginReference, AllTemplateVarsPtr, @NameLengthDWord);  //decode action execution results
-
-              SetPointedContentToString(AllTemplateVarsPtr, AllVarsStr);
-              SetLength(AllVarsStr, NameLengthDWord);
-
-              SetLength(AllFindSubControlExecutionResults_Corners, Length(AllFindSubControlExecutionResults_Corners) + 1);
-              AllFindSubControlExecutionResults_Corners[Length(AllFindSubControlExecutionResults_Corners) - 1] := AllVarsStr;
-            end;
+      ListOfAllVars := TStringList.Create;
+      try
+        ListOfAllVars.Text := AllVarsStr;
+        Control_Left := StrToIntDef(ListOfAllVars.Values['$Control_Left$'], 0);
+        Control_Top := StrToIntDef(ListOfAllVars.Values['$Control_Top$'], 0);
+      finally
+        ListOfAllVars.Free;
       end;
-    end;   //for  i := 0 to ActionCount - 1
 
-    if Length(AllFindSubControlExecutionResults_Corners) <> 4 then   //expecting 4 actions
-    begin
-      ResName := CActionPlugin_ExecutionResultErrorVar;
-      ResValue := 'Not all the required FindSubControl actions are found in the current template. Found ' +
-                  IntToStr(Length(AllFindSubControlExecutionResults_Corners)) +
-                  ' action(s).  PluginSettings: ' + PluginSettingsStr;
+      if not DbgPoint('After getting $Control_Left$ and $Control_Top$', 'Read $Control_Left$ and $Control_Top$: ' + IntToStr(Control_Left) + ' : ' + IntToStr(Control_Top)) then
+        Exit;
 
-      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-      DbgPoint('Invalid template', ResValue, IsBreakPoint);
-
-      Exit;
-    end;
-
-    if not DbgPoint('Decoding windows', '') then
-      Exit;
-
-    //Actual window decoding:
-    DecodeWindows(AllFindSubControlExecutionResults_Corners, WindowFeaturesArr);
-    WindowFeaturesArrToString(WindowFeaturesArr, Control_Left, Control_Top, BorderThickness, DecodedWindowsResults);
-
-    //Set results
-    ResName := CActionPlugin_ExecutionResultVar_XOffset;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsX[1]);
-
-    ResName := CActionPlugin_ExecutionResultVar_YOffset;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsY[1]);
-
-    ResName := CActionPlugin_ExecutionResultVar_Width;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsW[1]);
-
-    ResName := CActionPlugin_ExecutionResultVar_Height;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsH[1]);
-
-    ResName := CActionPlugin_ExecutionResultVar_Control_Lefts;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlLefts[1]);
-
-    ResName := CActionPlugin_ExecutionResultVar_Control_Tops;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlTops[1]);
-
-    ResName := CActionPlugin_ExecutionResultVar_Control_Rights;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlRights[1]);
-
-    ResName := CActionPlugin_ExecutionResultVar_Control_Bottoms;
-    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlBottoms[1]);
-
-    if MatchWindowEdges = 'True' then
-    begin
-      DbgPoint('Searching for window edges', 'start');
-
-      SetLength(AllFindSubControlExecutionResults_Edges, 0);
-
-      //Executing FindSubControl actions
+      //Executing FindSubControl actions, for getting window corners
       s := 'unset action';
       for i := 0 to ActionCount - 1 do
       begin
@@ -978,156 +880,272 @@ begin
           ActionType := TClkAction(ActionTypeDWord);
 
           if ActionType in [acFindSubControl, acPlugin] then
-            for j := CFindSubControlLeftEdge_PropIndex to CFindSubControlBottomEdge_PropIndex do    //edges:  without "- 1"
+            for j := CFindSubControlTopLeftCorner_PropIndex to CFindSubControlBotRightCorner_PropIndex do  //corners:  without "- 1"
               if s = AllRequiredFindSubControlNames[j] then
-                for k := 0 to Length(WindowFeaturesArr) - 1 do  //Setting search area for current edge
-                begin
-                  if not DbgPoint('Calling FindControl or CallTemplate (edges)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex], IsBreakPoint) then
-                    Exit;
+              begin
+                if not DbgPoint('Calling FindControl or CallTemplate (corners)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex], IsBreakPoint) then
+                  Exit;
 
-                  if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
-                    if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
-                    begin
-                      ResName := CActionPlugin_ExecutionResultErrorVar;
-                      ResValue := 'The required "' + PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] + '" action has failed on: ' + s;  //example
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-                      Exit;
-                    end;
-
-                  if not DbgPoint('Setting search area for current edge', 'Edge property index: ' + IntToStr(j) + '  Name: ' + s) then
-                    Exit;
-
-                  DbgPoint('Matching edge', 'Current edge: ' + CEdgeNames[j] + '   Corner index: ' + IntToStr(k));
-
-                  case j of
-                    CFindSubControlLeftEdge_PropIndex:
-                    begin
-                      ResName := CActionPlugin_SearchArea_WinEdgeLeftVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.X);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeTopVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.Y + BorderThickness);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeRightVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.X + BorderThickness);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeBottomVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y + 1);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := '$LE_Height$';
-                      ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y - WindowFeaturesArr[k].TopLeftCorner.Y - BorderThickness - 1); // "+ 1" gives a single result, but that is too tight
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-                    end;
-
-                    CFindSubControlTopEdge_PropIndex:
-                    begin
-                      ResName := CActionPlugin_SearchArea_WinEdgeLeftVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.X + BorderThickness);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeTopVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.Y);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeRightVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.X - 102);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeBottomVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.Y + BorderThickness + 1);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := '$TE_Width$';
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.X - WindowFeaturesArr[k].TopLeftCorner.X - BorderThickness - 102);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-                    end;
-
-                    CFindSubControlRightEdge_PropIndex:
-                    begin
-                      ResName := CActionPlugin_SearchArea_WinEdgeLeftVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.X);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeTopVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.Y + BorderThickness);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeRightVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.X + BorderThickness);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeBottomVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].BotRightCorner.Y + 1);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := '$LE_Height$';
-                      ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y - WindowFeaturesArr[k].TopLeftCorner.Y - BorderThickness - 1);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-                    end;
-
-                    CFindSubControlBottomEdge_PropIndex:                   ///////////////////////// ToDo:  verify search area
-                    begin
-                      ResName := CActionPlugin_SearchArea_WinEdgeLeftVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.X + BorderThickness);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeTopVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y - 1);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeRightVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].BotRightCorner.X);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := CActionPlugin_SearchArea_WinEdgeBottomVar;
-                      ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y + BorderThickness);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-
-                      ResName := '$TE_Width$';
-                      ResValue := IntToStr(WindowFeaturesArr[k].BotRightCorner.X - WindowFeaturesArr[k].BotLeftCorner.X - BorderThickness);
-                      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-                    end;
-                  end;
-
-                  if not AOnActionPlugin_ExecuteAction(APluginReference, @s[1]) then
+                if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
+                  if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
                   begin
-                    //ResName := CActionPlugin_ExecutionResultErrorVar;
-                    //ResValue := 'One of the required FindSubControl actions has failed: ' + s;  //example
-                    //AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
-                    //Exit;
+                    ResName := CActionPlugin_ExecutionResultErrorVar;
+                    ResValue := 'The required "' + PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] + '" action has failed on: ' + s;  //example
+                    AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+                    Exit;
                   end;
 
-                  if not DbgPoint('After matching edge', 'Current edge: ' + CEdgeNames[j] + '   Corner index: ' + IntToStr(k)) then
-                    Exit;
-
-                  SetLength(Buffer, CMaxSharedStringLength + 1);
-                  AllTemplateVarsPtr := @Buffer[1];
-                  NameLengthDWord := 0;
-
-                  AOnActionPlugin_GetAllTemplateVars(APluginReference, AllTemplateVarsPtr, @NameLengthDWord);  //decode action execution results
-
-                  SetPointedContentToString(AllTemplateVarsPtr, AllVarsStr);
-                  SetLength(AllVarsStr, NameLengthDWord);
-
-                  SetLength(AllFindSubControlExecutionResults_Edges, Length(AllFindSubControlExecutionResults_Edges) + 1);
-                  AllFindSubControlExecutionResults_Edges[Length(AllFindSubControlExecutionResults_Edges) - 1] := AllVarsStr;
+                if not AOnActionPlugin_ExecuteAction(APluginReference, @s[1]) then
+                begin
+                  //ResName := CActionPlugin_ExecutionResultErrorVar;
+                  //ResValue := 'One of the required FindSubControl actions has failed: ' + s;  //example
+                  //AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+                  //Exit;
                 end;
+
+                SetLength(Buffer, CMaxSharedStringLength + 1);
+                AllTemplateVarsPtr := @Buffer[1];
+                NameLengthDWord := 0;
+
+                AOnActionPlugin_GetAllTemplateVars(APluginReference, AllTemplateVarsPtr, @NameLengthDWord);  //decode action execution results
+
+                SetPointedContentToString(AllTemplateVarsPtr, AllVarsStr);
+                SetLength(AllVarsStr, NameLengthDWord);
+
+                SetLength(AllFindSubControlExecutionResults_Corners, Length(AllFindSubControlExecutionResults_Corners) + 1);
+                AllFindSubControlExecutionResults_Corners[Length(AllFindSubControlExecutionResults_Corners) - 1] := AllVarsStr;
+              end;
         end;
       end;   //for  i := 0 to ActionCount - 1
 
-      DbgPoint('Done searching for window edges', 'done');
-    end; //MatchWindowEdges
-  finally
-    PluginSettings.Free;
+      if Length(AllFindSubControlExecutionResults_Corners) <> 4 then   //expecting 4 actions
+      begin
+        ResName := CActionPlugin_ExecutionResultErrorVar;
+        ResValue := 'Not all the required FindSubControl actions are found in the current template. Found ' +
+                    IntToStr(Length(AllFindSubControlExecutionResults_Corners)) +
+                    ' action(s).  PluginSettings: ' + PluginSettingsStr;
+
+        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+        DbgPoint('Invalid template', ResValue, IsBreakPoint);
+
+        Exit;
+      end;
+
+      if not DbgPoint('Decoding windows', '') then
+        Exit;
+
+      //Actual window decoding:
+      DecodeWindows(AllFindSubControlExecutionResults_Corners, WindowFeaturesArr);
+      WindowFeaturesArrToString(WindowFeaturesArr, Control_Left, Control_Top, BorderThickness, DecodedWindowsResults);
+
+      //Set results
+      ResName := CActionPlugin_ExecutionResultVar_XOffset;
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsX[1]);
+
+      ResName := CActionPlugin_ExecutionResultVar_YOffset;
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsY[1]);
+
+      ResName := CActionPlugin_ExecutionResultVar_Width;
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsW[1]);
+
+      ResName := CActionPlugin_ExecutionResultVar_Height;
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ResultsH[1]);
+
+      ResName := CActionPlugin_ExecutionResultVar_Control_Lefts;
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlLefts[1]);
+
+      ResName := CActionPlugin_ExecutionResultVar_Control_Tops;
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlTops[1]);
+
+      ResName := CActionPlugin_ExecutionResultVar_Control_Rights;
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlRights[1]);
+
+      ResName := CActionPlugin_ExecutionResultVar_Control_Bottoms;
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @DecodedWindowsResults.ControlBottoms[1]);
+
+      if MatchWindowEdges = 'True' then
+      begin
+        DbgPoint('Searching for window edges', 'start');
+
+        SetLength(AllFindSubControlExecutionResults_Edges, 0);
+
+        //Executing FindSubControl actions
+        s := 'unset action';
+        for i := 0 to ActionCount - 1 do
+        begin
+          SetLength(Buffer, CMaxSharedStringLength + 1);
+          ActionNamePtr := @Buffer[1];
+          NameLengthDWord := 0;
+
+          AOnActionPlugin_GetActionInfoByIndex(APluginReference, i, ActionNamePtr, @NameLengthDWord, @ActionTypeDWord);
+          SetPointedContentToString(ActionNamePtr, s);
+          SetLength(s, NameLengthDWord);
+
+          if ActionTypeDWord <> $FFFFFFFF then
+          begin
+            ActionType := TClkAction(ActionTypeDWord);
+
+            if ActionType in [acFindSubControl, acPlugin] then
+              for j := CFindSubControlLeftEdge_PropIndex to CFindSubControlBottomEdge_PropIndex do    //edges:  without "- 1"
+                if s = AllRequiredFindSubControlNames[j] then
+                  for k := 0 to Length(WindowFeaturesArr) - 1 do  //Setting search area for current edge
+                  begin
+                    if not DbgPoint('Calling FindControl or CallTemplate (edges)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex], IsBreakPoint) then
+                      Exit;
+
+                    if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
+                      if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
+                      begin
+                        ResName := CActionPlugin_ExecutionResultErrorVar;
+                        ResValue := 'The required "' + PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] + '" action has failed on: ' + s;  //example
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+                        Exit;
+                      end;
+
+                    if not DbgPoint('Setting search area for current edge', 'Edge property index: ' + IntToStr(j) + '  Name: ' + s) then
+                      Exit;
+
+                    DbgPoint('Matching edge', 'Current edge: ' + CEdgeNames[j] + '   Corner index: ' + IntToStr(k));
+
+                    case j of
+                      CFindSubControlLeftEdge_PropIndex:
+                      begin
+                        ResName := CActionPlugin_SearchArea_WinEdgeLeftVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.X);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeTopVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.Y + BorderThickness);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeRightVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.X + BorderThickness);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeBottomVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y + 1);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := '$LE_Height$';
+                        ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y - WindowFeaturesArr[k].TopLeftCorner.Y - BorderThickness - 1); // "+ 1" gives a single result, but that is too tight
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+                      end;
+
+                      CFindSubControlTopEdge_PropIndex:
+                      begin
+                        ResName := CActionPlugin_SearchArea_WinEdgeLeftVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.X + BorderThickness);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeTopVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.Y);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeRightVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.X - 102);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeBottomVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopLeftCorner.Y + BorderThickness + 1);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := '$TE_Width$';
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.X - WindowFeaturesArr[k].TopLeftCorner.X - BorderThickness - 102);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+                      end;
+
+                      CFindSubControlRightEdge_PropIndex:
+                      begin
+                        ResName := CActionPlugin_SearchArea_WinEdgeLeftVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.X);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeTopVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.Y + BorderThickness);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeRightVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].TopRightCorner.X + BorderThickness);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeBottomVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].BotRightCorner.Y + 1);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := '$LE_Height$';
+                        ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y - WindowFeaturesArr[k].TopLeftCorner.Y - BorderThickness - 1);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+                      end;
+
+                      CFindSubControlBottomEdge_PropIndex:                   ///////////////////////// ToDo:  verify search area
+                      begin
+                        ResName := CActionPlugin_SearchArea_WinEdgeLeftVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.X + BorderThickness);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeTopVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y - 1);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeRightVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].BotRightCorner.X);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := CActionPlugin_SearchArea_WinEdgeBottomVar;
+                        ResValue := IntToStr(WindowFeaturesArr[k].BotLeftCorner.Y + BorderThickness);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+
+                        ResName := '$TE_Width$';
+                        ResValue := IntToStr(WindowFeaturesArr[k].BotRightCorner.X - WindowFeaturesArr[k].BotLeftCorner.X - BorderThickness);
+                        AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+                      end;
+                    end;
+
+                    if not AOnActionPlugin_ExecuteAction(APluginReference, @s[1]) then
+                    begin
+                      //ResName := CActionPlugin_ExecutionResultErrorVar;
+                      //ResValue := 'One of the required FindSubControl actions has failed: ' + s;  //example
+                      //AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+                      //Exit;
+                    end;
+
+                    if not DbgPoint('After matching edge', 'Current edge: ' + CEdgeNames[j] + '   Corner index: ' + IntToStr(k)) then
+                      Exit;
+
+                    SetLength(Buffer, CMaxSharedStringLength + 1);
+                    AllTemplateVarsPtr := @Buffer[1];
+                    NameLengthDWord := 0;
+
+                    AOnActionPlugin_GetAllTemplateVars(APluginReference, AllTemplateVarsPtr, @NameLengthDWord);  //decode action execution results
+
+                    SetPointedContentToString(AllTemplateVarsPtr, AllVarsStr);
+                    SetLength(AllVarsStr, NameLengthDWord);
+
+                    SetLength(AllFindSubControlExecutionResults_Edges, Length(AllFindSubControlExecutionResults_Edges) + 1);
+                    AllFindSubControlExecutionResults_Edges[Length(AllFindSubControlExecutionResults_Edges) - 1] := AllVarsStr;
+                  end;
+          end;
+        end;   //for  i := 0 to ActionCount - 1
+
+        DbgPoint('Done searching for window edges', 'done');
+      end; //MatchWindowEdges
+    finally
+      PluginSettings.Free;
+    end;
+
+    DbgPoint('Exiting plugin', 'done');
+
+    Result := True;
+
+  except
+    on E: Exception do
+    begin
+      ResName := CActionPlugin_ExecutionResultErrorVar;
+      ResValue := 'Plugin exception: "' + E.Message + '".';
+      AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
+    end;
   end;
-
-  DbgPoint('Exiting plugin', 'done');
-
-  Result := True;
 end;
 
 
