@@ -10,7 +10,7 @@ Count=1
 [Primitive_0]
 PrimitiveName="SetPen"
 Primitive=SetPen
-Color=D3D3D3
+Color=$GetTextItem($BorderLineColor$,$FileIndex$)$
 Style=psSolid
 Width=1
 Mode=pmCopy
@@ -38,7 +38,7 @@ ShowEndpointPixel=1
 [Primitive_3]
 PrimitiveName=clear
 Primitive=SetPen
-Color=EBEBEB
+Color=$GetTextItem($BorderRectColor$,$FileIndex$)$
 Style=psSolid
 Width=1
 Mode=pmCopy
@@ -48,7 +48,7 @@ JoinStyle=pjsRound
 [Primitive_4]
 PrimitiveName="SetBrush"
 Primitive=SetBrush
-Color=EBEBEB
+Color=$GetTextItem($BorderRectColor$,$FileIndex$)$
 Style=bsSolid
 
 [Primitive_5]
