@@ -813,8 +813,8 @@ begin
       SetLength(PluginSettingsStr, ListOfPluginSettingsLen);
       PluginSettings.Text := PluginSettingsStr;
 
-      if not DbgPoint('Get BorderThickness', '', IsBreakPoint) then
-        Exit;
+      //if not DbgPoint('Get BorderThickness', '') then
+      //  Exit;
 
       if PluginSettings.Count < CPropertiesCount then
       begin
@@ -828,8 +828,8 @@ begin
       BorderThickness := StrToIntDef(PluginSettings.ValueFromIndex[CBorderThickness_PropIndex], CDefaultBorderThickness);
       MatchWindowEdges := PluginSettings.ValueFromIndex[CMatchWindowEdges_PropIndex];
 
-      if not DbgPoint('After getting BorderThickness', 'Read BorderThickness: ' + IntToStr(BorderThickness)) then
-        Exit;
+      //if not DbgPoint('After getting BorderThickness', 'Read BorderThickness: ' + IntToStr(BorderThickness)) then
+      //  Exit;
 
       //Calling FindControl or CallTemplate, to update $Control_Left$ and $Control_Top$
       if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
@@ -860,8 +860,8 @@ begin
         ListOfAllVars.Free;
       end;
 
-      if not DbgPoint('After getting $Control_Left$ and $Control_Top$', 'Read $Control_Left$ and $Control_Top$: ' + IntToStr(Control_Left) + ' : ' + IntToStr(Control_Top)) then
-        Exit;
+      //if not DbgPoint('After getting $Control_Left$ and $Control_Top$', 'Read $Control_Left$ and $Control_Top$: ' + IntToStr(Control_Left) + ' : ' + IntToStr(Control_Top)) then
+      //  Exit;
 
       //Executing FindSubControl actions, for getting window corners
       s := 'unset action';
@@ -883,8 +883,8 @@ begin
             for j := CFindSubControlTopLeftCorner_PropIndex to CFindSubControlBotRightCorner_PropIndex do  //corners:  without "- 1"
               if s = AllRequiredFindSubControlNames[j] then
               begin
-                if not DbgPoint('Calling FindControl or CallTemplate (corners)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex], IsBreakPoint) then
-                  Exit;
+                //if not DbgPoint('Calling FindControl or CallTemplate (corners)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex]) then
+                //  Exit;
 
                 if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
                   if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
@@ -927,13 +927,13 @@ begin
 
         AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
 
-        DbgPoint('Invalid template', ResValue, IsBreakPoint);
+        DbgPoint('Invalid template', ResValue);
 
         Exit;
       end;
 
-      if not DbgPoint('Decoding windows', '') then
-        Exit;
+      //if not DbgPoint('Decoding windows', '') then
+      //  Exit;
 
       //Actual window decoding:
       DecodeWindows(AllFindSubControlExecutionResults_Corners, WindowFeaturesArr);
@@ -991,8 +991,8 @@ begin
                 if s = AllRequiredFindSubControlNames[j] then
                   for k := 0 to Length(WindowFeaturesArr) - 1 do  //Setting search area for current edge
                   begin
-                    if not DbgPoint('Calling FindControl or CallTemplate (edges)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex], IsBreakPoint) then
-                      Exit;
+                    //if not DbgPoint('Calling FindControl or CallTemplate (edges)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex]) then
+                    //  Exit;
 
                     if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
                       if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
@@ -1003,11 +1003,12 @@ begin
                         Exit;
                       end;
 
-                    if not DbgPoint('Setting search area for current edge', 'Edge property index: ' + IntToStr(j) + '  Name: ' + s) then
-                      Exit;
+                    //if not DbgPoint('Setting search area for current edge', 'Edge property index: ' + IntToStr(j) + '  Name: ' + s) then
+                    //  Exit;
 
-                    DbgPoint('Matching edge', 'Current edge: ' + CEdgeNames[j] + '   Corner index: ' + IntToStr(k));
+                    //DbgPoint('Matching edge', 'Current edge: ' + CEdgeNames[j] + '   Corner index: ' + IntToStr(k));
 
+                    //Setting search area for every type of edges
                     case j of
                       CFindSubControlLeftEdge_PropIndex:
                       begin
@@ -1124,7 +1125,16 @@ begin
 
                     SetLength(AllFindSubControlExecutionResults_Edges, Length(AllFindSubControlExecutionResults_Edges) + 1);
                     AllFindSubControlExecutionResults_Edges[Length(AllFindSubControlExecutionResults_Edges) - 1] := AllVarsStr;
-                  end;
+
+
+                    ListOfAllVars := TStringList.Create;
+                    try
+                      ListOfAllVars.Text := AllVarsStr;
+                      DbgPoint('Edge matching status', '  ' + ListOfAllVars.Values['$ResultedErrorCount$'] + '   ' + ListOfAllVars.Values['$AllControl_ResultedErrorCount$'] + ' ========');
+                    finally
+                      ListOfAllVars.Free;
+                    end;
+                  end; //for k
           end;
         end;   //for  i := 0 to ActionCount - 1
 
