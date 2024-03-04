@@ -115,6 +115,17 @@ const
   CActionPlugin_ExecutionResultVar_Control_Rights = '$DecodedWindows_Control_Rights$';
   CActionPlugin_ExecutionResultVar_Control_Bottoms = '$DecodedWindows_Control_Bottoms$';
 
+  //similar results as above, but "With edge"  (i.e. genereated after matching window edges with corners)
+  CActionPlugin_ExecutionResultVar_XOffset_WE = '$DecodedWindows_XOffset_WE$';
+  CActionPlugin_ExecutionResultVar_YOffset_WE = '$DecodedWindows_YOffset_WE$';
+  CActionPlugin_ExecutionResultVar_Width_WE = '$DecodedWindows_Control_Width_WE$';
+  CActionPlugin_ExecutionResultVar_Height_WE = '$DecodedWindows_Control_Height_WE$';
+
+  CActionPlugin_ExecutionResultVar_Control_Lefts_WE = '$DecodedWindows_Control_Lefts_WE$';
+  CActionPlugin_ExecutionResultVar_Control_Tops_WE = '$DecodedWindows_Control_Tops_WE$';
+  CActionPlugin_ExecutionResultVar_Control_Rights_WE = '$DecodedWindows_Control_Rights_WE$';
+  CActionPlugin_ExecutionResultVar_Control_Bottoms_WE = '$DecodedWindows_Control_Bottoms_WE$';
+
   CEdgeNames: array[CFindSubControlLeftEdge_PropIndex..CFindSubControlBottomEdge_PropIndex] of string = (   //for debugging
     'Left', 'Top', 'Right', 'Bottom'
   );
@@ -123,6 +134,9 @@ const
   CActionPlugin_SearchArea_WinEdgeTopVar = '$SearchArea_WinEdgeTop$';
   CActionPlugin_SearchArea_WinEdgeRightVar = '$SearchArea_WinEdgeRight$';
   CActionPlugin_SearchArea_WinEdgeBottomVar = '$SearchArea_WinEdgeBottom$';
+
+  CActionPlugin_EdgePropIndexVar = '$EdgePropIndex$';
+  CActionPlugin_WindowFeatureIndexVar = '$WindowFeatureIndex$';
 
 {ToDo:
  - [in work] - implement corners and edges processing - DecodeWindows
@@ -187,15 +201,15 @@ begin
 end;
 
 
-function IndexOfTopLeftCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer): Integer;
+function IndexOfTopLeftCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer; ASkipX: Boolean = False; ASkipY: Boolean = False): Integer;
 var
   i: Integer;
 begin
   Result := -1;
 
   for i := 0 to Length(AWindowFeaturesArr) - 1 do
-    if (AWindowFeaturesArr[i].TopLeftCorner.X = AXOffset) and
-       (AWindowFeaturesArr[i].TopLeftCorner.Y = AYOffset) and
+    if ((AWindowFeaturesArr[i].TopLeftCorner.X = AXOffset) or ASkipX) and
+       ((AWindowFeaturesArr[i].TopLeftCorner.Y = AYOffset) or ASkipY) and
        (AWindowFeaturesArr[i].TopLeftCornerSrcIdx = ASrcIdx) then
     begin
       Result := i;
@@ -204,15 +218,15 @@ begin
 end;
 
 
-function IndexOfBotLeftCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer): Integer;
+function IndexOfBotLeftCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer; ASkipX: Boolean = False; ASkipY: Boolean = False): Integer;
 var
   i: Integer;
 begin
   Result := -1;
 
   for i := 0 to Length(AWindowFeaturesArr) - 1 do
-    if (AWindowFeaturesArr[i].BotLeftCorner.X = AXOffset) and
-       (AWindowFeaturesArr[i].BotLeftCorner.Y = AYOffset) and
+    if ((AWindowFeaturesArr[i].BotLeftCorner.X = AXOffset) or ASkipX) and
+       ((AWindowFeaturesArr[i].BotLeftCorner.Y = AYOffset) or ASkipY) and
        (AWindowFeaturesArr[i].BotLeftCornerSrcIdx = ASrcIdx) then
     begin
       Result := i;
@@ -221,15 +235,15 @@ begin
 end;
 
 
-function IndexOfTopRightCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer): Integer;
+function IndexOfTopRightCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer; ASkipX: Boolean = False; ASkipY: Boolean = False): Integer;
 var
   i: Integer;
 begin
   Result := -1;
 
   for i := 0 to Length(AWindowFeaturesArr) - 1 do
-    if (AWindowFeaturesArr[i].TopRightCorner.X = AXOffset) and
-       (AWindowFeaturesArr[i].TopRightCorner.Y = AYOffset) and
+    if ((AWindowFeaturesArr[i].TopRightCorner.X = AXOffset) or ASkipX) and
+       ((AWindowFeaturesArr[i].TopRightCorner.Y = AYOffset) or ASkipY) and
        (AWindowFeaturesArr[i].TopRightCornerSrcIdx = ASrcIdx) then
     begin
       Result := i;
@@ -238,15 +252,15 @@ begin
 end;
 
 
-function IndexOfBotRightCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer): Integer;
+function IndexOfBotRightCorner(var AWindowFeaturesArr: TWindowFeaturesArr; AXOffset, AYOffset, ASrcIdx: Integer; ASkipX: Boolean = False; ASkipY: Boolean = False): Integer;
 var
   i: Integer;
 begin
   Result := -1;
 
   for i := 0 to Length(AWindowFeaturesArr) - 1 do
-    if (AWindowFeaturesArr[i].BotRightCorner.X = AXOffset) and
-       (AWindowFeaturesArr[i].BotRightCorner.Y = AYOffset) and
+    if ((AWindowFeaturesArr[i].BotRightCorner.X = AXOffset) or ASkipX) and
+       ((AWindowFeaturesArr[i].BotRightCorner.Y = AYOffset) or ASkipY) and
        (AWindowFeaturesArr[i].BotRightCornerSrcIdx = ASrcIdx) then
     begin
       Result := i;
@@ -472,7 +486,7 @@ begin
       AllControl_XOffsets := AllVars.Values['$AllControl_XOffsets$'];       //example: 19460544
       AllControl_YOffsets := AllVars.Values['$AllControl_YOffsets$'];       //example: 244188428
       AllControl_MatchSource := AllVars.Values['$AllControl_MatchSource$']; //example: pmtv[0]pmtv[1]pmtv[1]
-
+                                                                            //meaning: one active window, then two inactive windows
       XOffsets := TStringList.Create;
       YOffsets := TStringList.Create;
       MatchSource := TStringList.Create;
@@ -736,6 +750,158 @@ begin
 end;
 
 
+procedure ConcatTIntArr(var ADest, ASrc: TIntArr);
+var
+  i: Integer;
+begin
+  for i := 0 to Length(ASrc) - 1 do
+  begin
+    SetLength(ADest, Length(ADest) + 1);  //it would be faster to preallocate
+    ADest[Length(ADest) - 1] := ASrc[i];
+  end;
+end;
+
+
+//'WinLeft_0=30' + #4#5 + 'WinTop_0=90' + #4#5 + 'WinRight_0=250' + #4#5 + 'WinBottom_0=400' + #4#5;  //this example may change
+procedure DecodeWindowsByEdges(var AllFindSubControlExecutionResults: TStringArr; var ExistingCorners, WindowFeaturesArr: TWindowFeaturesArr);
+var
+  AllVars, XOffsets, YOffsets, MatchSource: TStringList;
+  i, j, EdgePropIndex, ExistingCornerIndex: Integer;
+  CornerTypeCount: Integer;
+  CornerIndex: Integer;
+  AllControl_XOffsets, AllControl_YOffsets, AllControl_MatchSource: string;
+  ValidWindowFeaturesArr: TWindowFeaturesArr;
+
+  //These are edges, not window corners:
+  TopLeftCorner_XOffsetsIntArr, TopLeftCorner_YOffsetsIntArr, TopLeftCorner_SrcIdx: TIntArr;
+  BotLeftCorner_XOffsetsIntArr, BotLeftCorner_YOffsetsIntArr, BotLeftCorner_SrcIdx: TIntArr;
+  TopRightCorner_XOffsetsIntArr, TopRightCorner_YOffsetsIntArr, TopRightCorner_SrcIdx: TIntArr;
+  BotRightCorner_XOffsetsIntArr, BotRightCorner_YOffsetsIntArr, BotRightCorner_SrcIdx: TIntArr;
+
+  Temp_TopLeftCorner_XOffsetsIntArr, Temp_TopLeftCorner_YOffsetsIntArr, Temp_TopLeftCorner_SrcIdx: TIntArr;
+  Temp_BotLeftCorner_XOffsetsIntArr, Temp_BotLeftCorner_YOffsetsIntArr, Temp_BotLeftCorner_SrcIdx: TIntArr;
+  Temp_TopRightCorner_XOffsetsIntArr, Temp_TopRightCorner_YOffsetsIntArr, Temp_TopRightCorner_SrcIdx: TIntArr;
+  Temp_BotRightCorner_XOffsetsIntArr, Temp_BotRightCorner_YOffsetsIntArr, Temp_BotRightCorner_SrcIdx: TIntArr;
+
+  //DbgStr: string;
+begin
+  CornerTypeCount := Length(ExistingCorners);
+
+  for j := 0 to Length(AllFindSubControlExecutionResults) - 1 do
+  begin
+    AllVars := TStringList.Create;
+    try
+      AllVars.Text := AllFindSubControlExecutionResults[j];
+
+      AllControl_XOffsets := AllVars.Values['$AllControl_XOffsets$'];       //example: 19460544
+      AllControl_YOffsets := AllVars.Values['$AllControl_YOffsets$'];       //example: 244188428
+      AllControl_MatchSource := AllVars.Values['$AllControl_MatchSource$']; //example: pmtv[0]pmtv[1]pmtv[1]
+                                                                            //meaning: one active window, then two inactive windows
+      XOffsets := TStringList.Create;
+      YOffsets := TStringList.Create;
+      MatchSource := TStringList.Create;
+      try
+        XOffsets.Text := FastReplace_45ToReturn(AllControl_XOffsets);
+        YOffsets.Text := FastReplace_45ToReturn(AllControl_YOffsets);
+        MatchSource.Text := FastReplace_45ToReturn(AllControl_MatchSource);
+
+        EdgePropIndex := StrToIntDef(AllVars.Values[CActionPlugin_EdgePropIndexVar], -1);  //range 4..9
+        ExistingCornerIndex := StrToIntDef(AllVars.Values[CActionPlugin_WindowFeatureIndexVar], 0);  //range 0..CornerTypeCount- 1     (i.e. CornerTypeCount = <number of primitive files>)
+
+        case EdgePropIndex of
+          CFindSubControlLeftEdge_PropIndex:
+            SetCornerAsIntArr(XOffsets, YOffsets, MatchSource, Temp_TopLeftCorner_XOffsetsIntArr, Temp_TopLeftCorner_YOffsetsIntArr, Temp_TopLeftCorner_SrcIdx);
+
+          CFindSubControlTopEdge_PropIndex:
+            SetCornerAsIntArr(XOffsets, YOffsets, MatchSource, Temp_BotLeftCorner_XOffsetsIntArr, Temp_BotLeftCorner_YOffsetsIntArr, Temp_BotLeftCorner_SrcIdx);
+
+          CFindSubControlRightEdge_PropIndex:
+            SetCornerAsIntArr(XOffsets, YOffsets, MatchSource, Temp_TopRightCorner_XOffsetsIntArr, Temp_TopRightCorner_YOffsetsIntArr, Temp_TopRightCorner_SrcIdx);
+
+          CFindSubControlBottomEdge_PropIndex:
+            SetCornerAsIntArr(XOffsets, YOffsets, MatchSource, Temp_BotRightCorner_XOffsetsIntArr, Temp_BotRightCorner_YOffsetsIntArr, Temp_BotRightCorner_SrcIdx);
+        end; //case
+      finally
+        XOffsets.Free;
+        YOffsets.Free;
+        MatchSource.Free;
+      end;
+    finally
+      AllVars.Free;
+    end;
+
+    ConcatTIntArr(TopLeftCorner_XOffsetsIntArr, Temp_TopLeftCorner_XOffsetsIntArr);
+    ConcatTIntArr(BotLeftCorner_XOffsetsIntArr, Temp_BotLeftCorner_XOffsetsIntArr);
+    ConcatTIntArr(TopRightCorner_XOffsetsIntArr, Temp_TopRightCorner_XOffsetsIntArr);
+    ConcatTIntArr(BotRightCorner_XOffsetsIntArr, Temp_BotRightCorner_XOffsetsIntArr);
+
+    ConcatTIntArr(TopLeftCorner_YOffsetsIntArr, Temp_TopLeftCorner_YOffsetsIntArr);
+    ConcatTIntArr(BotLeftCorner_YOffsetsIntArr, Temp_BotLeftCorner_YOffsetsIntArr);
+    ConcatTIntArr(TopRightCorner_YOffsetsIntArr, Temp_TopRightCorner_YOffsetsIntArr);
+    ConcatTIntArr(BotRightCorner_YOffsetsIntArr, Temp_BotRightCorner_YOffsetsIntArr);
+
+    ConcatTIntArr(TopLeftCorner_SrcIdx, Temp_TopLeftCorner_SrcIdx);
+    ConcatTIntArr(BotLeftCorner_SrcIdx, Temp_BotLeftCorner_SrcIdx);
+    ConcatTIntArr(TopRightCorner_SrcIdx, Temp_TopRightCorner_SrcIdx);
+    ConcatTIntArr(BotRightCorner_SrcIdx, Temp_BotRightCorner_SrcIdx);
+  end; //for j
+
+  SetLength(WindowFeaturesArr, 0);
+
+  //matching TopLeft corner with BotLeft
+  for i := 0 to Length(TopLeftCorner_XOffsetsIntArr) - 1 do    //if the edge is too short, then multiple edges are found (partially overlapped)
+  begin
+    CornerIndex := IndexOfTopLeftCorner(WindowFeaturesArr, TopLeftCorner_XOffsetsIntArr[i], TopLeftCorner_YOffsetsIntArr[i], TopLeftCorner_SrcIdx[i], False, True);
+    for j := 0 to Length(ExistingCorners) - 1 do
+      if (TopLeftCorner_XOffsetsIntArr[i] = ExistingCorners[j].TopLeftCorner.X) and
+         (TopLeftCorner_SrcIdx[i] = ExistingCorners[j].TopLeftCornerSrcIdx) then   //the same SrcIdx means the two corners were found with the same FindSubControl settings.
+      begin
+        if CornerIndex = -1 then
+        begin
+          SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
+          InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.X := ExistingCorners[j].TopLeftCorner.X;
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.Y := ExistingCorners[j].TopLeftCorner.Y;
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCornerSrcIdx := ExistingCorners[j].TopLeftCornerSrcIdx;
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.X := ExistingCorners[j].BotLeftCorner.X;
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCorner.Y := ExistingCorners[j].BotLeftCorner.Y;
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].BotLeftCornerSrcIdx := ExistingCorners[j].BotLeftCornerSrcIdx;
+
+          Break;
+        end;
+      end;
+  end;
+
+  //matching TopLeft corner with TopRight
+  for i := 0 to Length(TopLeftCorner_YOffsetsIntArr) - 1 do    //if the edge is too short, then multiple edges are found (partially overlapped)
+  begin
+    CornerIndex := IndexOfTopLeftCorner(WindowFeaturesArr, TopLeftCorner_XOffsetsIntArr[i], TopLeftCorner_YOffsetsIntArr[i], TopLeftCorner_SrcIdx[i], True, False);
+    for j := 0 to Length(ExistingCorners) - 1 do
+      if (TopLeftCorner_YOffsetsIntArr[i] = ExistingCorners[j].TopLeftCorner.Y) and
+         (TopLeftCorner_SrcIdx[i] = ExistingCorners[j].TopLeftCornerSrcIdx) then   //the same SrcIdx means the two corners were found with the same FindSubControl settings.
+      begin
+        if CornerIndex = -1 then
+        begin
+          SetLength(WindowFeaturesArr, Length(WindowFeaturesArr) + 1);
+          InitWindowFeatures(WindowFeaturesArr[Length(WindowFeaturesArr) - 1]);
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.X := ExistingCorners[j].TopLeftCorner.X;
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCorner.Y := ExistingCorners[j].TopLeftCorner.Y;
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopLeftCornerSrcIdx := ExistingCorners[j].TopLeftCornerSrcIdx;
+
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.X := ExistingCorners[j].TopRightCorner.X;
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCorner.Y := ExistingCorners[j].TopRightCorner.Y;
+          WindowFeaturesArr[Length(WindowFeaturesArr) - 1].TopRightCornerSrcIdx := ExistingCorners[j].TopRightCornerSrcIdx;
+
+          Break;
+        end;
+      end;
+  end;
+end;
+
+
 procedure GetAllRequiredFindSubControlActionNames(APluginSettings: TStringList; var AAllRequiredFindSubControlNames: TStringArr);
 var
   i, j: Integer;
@@ -776,7 +942,7 @@ var
   AllFindSubControlExecutionResults_Corners: TStringArr;
   AllFindSubControlExecutionResults_Edges: TStringArr;
   Control_Left, Control_Top, BorderThickness: Integer;
-  WindowFeaturesArr: TWindowFeaturesArr;
+  WindowFeaturesArr, WindowFeaturesWidthEdgesArr: TWindowFeaturesArr;
   DecodedWindowsResults: TDecodedWindowsResults;
 
   procedure SetTemplateVar(AVarName, AVarValue: string);
@@ -993,6 +1159,8 @@ begin
 
                     //DbgPoint('Matching edge', 'Current edge: ' + CEdgeNames[j] + '   Corner index: ' + IntToStr(k));
 
+                    SetTemplateVar(CActionPlugin_EdgePropIndexVar, IntToStr(j));       //used later in DecodeWindowsByEdges
+                    SetTemplateVar(CActionPlugin_WindowFeatureIndexVar, IntToStr(k));  //used later in DecodeWindowsByEdges
                     //Setting search area for every type of edges
                     case j of
                       CFindSubControlLeftEdge_PropIndex:
@@ -1057,7 +1225,7 @@ begin
                     try
                       ListOfAllVars.Text := AllVarsStr;
                       DbgPoint('Edge matching status', '  ' + ListOfAllVars.Values['$ResultedErrorCount$'] + '   ' + ListOfAllVars.Values['$AllControl_ResultedErrorCount$'] + ' ========');
-                      DbgPoint('Edge results ', ListOfAllVars.Values['$AllControl_Lefts$'] + '   ' + ListOfAllVars.Values['$AllControl_Tops$'] + '   ' + ListOfAllVars.Values['$AllControl_Rights$'] + '   ' + ListOfAllVars.Values['$AllControl_Bottoms$'] + '   ');
+                      DbgPoint('Edge results ', 'Xoff: ' + ListOfAllVars.Values['$AllControl_XOffsets$'] + '   Yoff: ' + ListOfAllVars.Values['$AllControl_YOffsets$'] + '   L: ' + ListOfAllVars.Values['$AllControl_Lefts$'] + '   T: ' + ListOfAllVars.Values['$AllControl_Tops$'] + '   R: ' + ListOfAllVars.Values['$AllControl_Rights$'] + '   B: ' + ListOfAllVars.Values['$AllControl_Bottoms$'] + '   Src: ' + ListOfAllVars.Values['$AllControl_MatchSource$'] + '   WinFeatureIdx: ' + ListOfAllVars.Values[CActionPlugin_WindowFeatureIndexVar]);
 
                       case j of
                         CFindSubControlLeftEdge_PropIndex:
@@ -1079,7 +1247,19 @@ begin
           end; //valid action type
         end;   //for  i := 0 to ActionCount - 1
 
-        DbgPoint('Done searching for window edges', 'done');
+        DbgPoint('Done searching for window edges', ' Found ' + IntToStr(Length(AllFindSubControlExecutionResults_Edges)) + ' result(s).');
+        DecodeWindowsByEdges(AllFindSubControlExecutionResults_Edges, WindowFeaturesArr, WindowFeaturesWidthEdgesArr);
+        WindowFeaturesArrToString(WindowFeaturesWidthEdgesArr, Control_Left, Control_Top, BorderThickness, DecodedWindowsResults);
+
+        //Set results
+        SetTemplateVar(CActionPlugin_ExecutionResultVar_XOffset_WE, DecodedWindowsResults.ResultsX);
+        SetTemplateVar(CActionPlugin_ExecutionResultVar_YOffset_WE, DecodedWindowsResults.ResultsY);
+        SetTemplateVar(CActionPlugin_ExecutionResultVar_Width_WE, DecodedWindowsResults.ResultsW);
+        SetTemplateVar(CActionPlugin_ExecutionResultVar_Height_WE, DecodedWindowsResults.ResultsH);
+        SetTemplateVar(CActionPlugin_ExecutionResultVar_Control_Lefts_WE, DecodedWindowsResults.ControlLefts);
+        SetTemplateVar(CActionPlugin_ExecutionResultVar_Control_Tops_WE, DecodedWindowsResults.ControlTops);
+        SetTemplateVar(CActionPlugin_ExecutionResultVar_Control_Rights_WE, DecodedWindowsResults.ControlRights);
+        SetTemplateVar(CActionPlugin_ExecutionResultVar_Control_Bottoms_WE, DecodedWindowsResults.ControlBottoms);
       end; //MatchWindowEdges
     finally
       PluginSettings.Free;
