@@ -448,13 +448,13 @@ begin
     //Requires a bit of refactoring:
     ADecodedWindowsResults.ResultsX := ADecodedWindowsResults.ResultsX + IntToStr(AWindowFeaturesArr[i].TopLeftCorner.X) + #4#5;
     ADecodedWindowsResults.ResultsY := ADecodedWindowsResults.ResultsY + IntToStr(AWindowFeaturesArr[i].TopLeftCorner.Y) + #4#5;
-    ADecodedWindowsResults.ResultsW := ADecodedWindowsResults.ResultsW + IntToStr(AWindowFeaturesArr[i].TopLeftCorner.X + AWindowFeaturesArr[i].TopRightCorner.X + ABorderThickness) + #4#5;
-    ADecodedWindowsResults.ResultsH := ADecodedWindowsResults.ResultsH + IntToStr(AWindowFeaturesArr[i].TopLeftCorner.Y + AWindowFeaturesArr[i].BotLeftCorner.Y + ABorderThickness) + #4#5;
+    ADecodedWindowsResults.ResultsW := ADecodedWindowsResults.ResultsW + IntToStr(AWindowFeaturesArr[i].TopRightCorner.X - AWindowFeaturesArr[i].TopLeftCorner.X + ABorderThickness) + #4#5;
+    ADecodedWindowsResults.ResultsH := ADecodedWindowsResults.ResultsH + IntToStr(AWindowFeaturesArr[i].BotLeftCorner.Y - AWindowFeaturesArr[i].TopLeftCorner.Y + ABorderThickness) + #4#5;
 
     ADecodedWindowsResults.ControlLefts := ADecodedWindowsResults.ControlLefts + IntToStr(AWindowFeaturesArr[i].TopLeftCorner.X + AControl_Left) + #4#5;
     ADecodedWindowsResults.ControlTops := ADecodedWindowsResults.ControlTops + IntToStr(AWindowFeaturesArr[i].TopLeftCorner.Y + AControl_Top) + #4#5;
-    ADecodedWindowsResults.ControlRights := ADecodedWindowsResults.ControlRights + IntToStr(AWindowFeaturesArr[i].TopRightCorner.X + ABorderThickness + AControl_Left) + #4#5;
-    ADecodedWindowsResults.ControlBottoms := ADecodedWindowsResults.ControlBottoms + IntToStr(AWindowFeaturesArr[i].BotLeftCorner.Y + ABorderThickness + AControl_Top) + #4#5;
+    ADecodedWindowsResults.ControlRights := ADecodedWindowsResults.ControlRights + IntToStr(AWindowFeaturesArr[i].TopRightCorner.X + AControl_Left) + #4#5;
+    ADecodedWindowsResults.ControlBottoms := ADecodedWindowsResults.ControlBottoms + IntToStr(AWindowFeaturesArr[i].BotLeftCorner.Y + AControl_Top) + #4#5;
   end;
 
   //MessageBox(0, PChar(DbgStr), 'Plugin', MB_ICONINFORMATION);
