@@ -30,8 +30,8 @@ library UIClickerFindWindows;
 {$ENDIF}
 
 uses
-  Windows, Interfaces, Classes, SysUtils,
-  ClickerUtils, ClickerActionPlugins, DllUtils;
+  {Windows,} Interfaces, Classes, SysUtils, Graphics,
+  ClickerUtils, ClickerActionPlugins, DllUtils, ClickerFileProviderUtils;
 
 
 type
@@ -144,6 +144,16 @@ const
   - refactoring in ExecutePlugin
   - handle windows which are of the same width and x position, or of the same height and y position, (overlapped or not)
 }
+
+var
+  AddToLogCallback: TOnActionPlugin_AddToLog;
+
+
+procedure AddToLog(AMsg: string);  //thread safe
+begin
+  if @AddToLogCallback <> nil then
+    AddToLogCallback(DefaultPluginReference, @AMsg[1]);
+end;
 
 
 function GetAPIVersion: DWord; cdecl;
@@ -920,6 +930,27 @@ end;
 function IsValidCornerPair(AListOfAllVars: TStringList; ACornerCoord, ACornerIndex: Integer; AVarName: string): Boolean; forward;
 
 
+procedure HandleOnFileContent(ACallReference, AStreamContent: Pointer; AStreamSize: Int64); cdecl;
+var
+  TempStream: TMemoryStream;
+  DestBmp: TBitmap;
+begin
+  if AStreamSize <= 0 then
+    Exit;
+
+  DestBmp := TBitmap(ACallReference); //created by caller
+
+  TempStream := TMemoryStream.Create;
+  try
+    TempStream.SetSize(AStreamSize);
+    Move(AStreamContent^, TempStream.Memory^, AStreamSize);
+    DestBmp.LoadFromStream(TempStream, AStreamSize);
+  finally
+    TempStream.Free;
+  end;
+end;
+
+
 //ToDo:   refactoring
 function ExecutePlugin(APluginReference: Pointer;
                        AListOfPluginSettings: Pointer;
@@ -930,7 +961,11 @@ function ExecutePlugin(APluginReference: Pointer;
                        AOnActionPlugin_ExecuteAction: TOnActionPlugin_ExecuteAction;
                        AOnActionPlugin_GetAllTemplateVars: TOnActionPlugin_GetAllTemplateVars;
                        AOnActionPlugin_SetTemplateVar: TOnActionPlugin_SetTemplateVar;
-                       AOnActionPlugin_DebugPoint: TOnActionPlugin_DebugPoint): Boolean; cdecl;
+                       AOnActionPlugin_DebugPoint: TOnActionPlugin_DebugPoint;
+                       AOnActionPlugin_AddToLog: TOnActionPlugin_AddToLog;
+                       AOnActionPlugin_SetResultImg: TOnActionPlugin_SetResultImg;
+                       AOnActionPlugin_LoadBitmap: TOnActionPlugin_LoadBitmap;
+                       AOnActionPlugin_GetAllowedFilesInfo: TOnActionPlugin_GetAllowedFilesInfo): Boolean; cdecl;
 var
   ActionCount, i, j, k: Integer;
   ActionType: TClkAction;
@@ -961,7 +996,7 @@ var
     NameLengthDWord := 0;
 
     AActionName := '';
-    AOnActionPlugin_GetActionInfoByIndex(APluginReference, i, ActionNamePtr, @NameLengthDWord, @AActionType);
+    AOnActionPlugin_GetActionInfoByIndex(APluginReference, AIndex, ActionNamePtr, @NameLengthDWord, @AActionType);
     SetPointedContentToString(ActionNamePtr, AActionName);
     SetLength(AActionName, NameLengthDWord);
   end;
@@ -991,11 +1026,79 @@ var
     SetLength(APluginSettings, AListOfPluginSettingsLen^);
   end;
 
+  function BitmapIsAllowedToBeLoaded(AFnm: string): Boolean;
+  var
+    TempFileProvider: TFileProvider;
+    TempDenyReason: string;
+    FullTemplatesDir, AllowedFileDirsForServer, AllowedFileExtensionsForServer: string;
+    FullTemplatesDirPtr, AllowedFileDirsForServerPtr, AllowedFileExtensionsForServerPtr: Pointer;
+  begin
+    TempFileProvider := TFileProvider.Create;
+    try
+      SetLength(FullTemplatesDir, CMaxSharedStringLength + 1);
+      SetLength(AllowedFileDirsForServer, CMaxSharedStringLength + 1);
+      SetLength(AllowedFileExtensionsForServer, CMaxSharedStringLength + 1);
+
+      FullTemplatesDirPtr := @FullTemplatesDir[1];
+      AllowedFileDirsForServerPtr := @AllowedFileDirsForServer[1];
+      AllowedFileExtensionsForServerPtr := @AllowedFileExtensionsForServer[1];
+
+      AOnActionPlugin_GetAllowedFilesInfo(APluginReference, FullTemplatesDirPtr, AllowedFileDirsForServerPtr, AllowedFileExtensionsForServerPtr);
+      TempFileProvider.FullTemplatesDir := FullTemplatesDir;
+
+      TempFileProvider.AddListOfAccessibleDirs(AllowedFileDirsForServer);
+      TempFileProvider.AddListOfAccessibleFileExtensions(AllowedFileExtensionsForServer);
+
+      Result := TempFileProvider.FileIsAllowed(AFnm, TempDenyReason);
+    finally
+      TempFileProvider.Free;
+    end;
+  end;
+
+  function LoadBitmap(AFnm: string; ADestBmp: TBitmap): Boolean;
+  begin
+    if BitmapIsAllowedToBeLoaded(AFnm) then
+      Result := AOnActionPlugin_LoadBitmap(APluginReference, @AFnm[1], ADestBmp, 0, @HandleOnFileContent)
+    else
+      Result := False;
+  end;
+
+  procedure GenerateSomeResultImg;
+  var
+    TempBmp, BkBmp: TBitmap;
+    TempStream: TMemoryStream;
+  begin
+    TempBmp := TBitmap.Create;
+    BkBmp := TBitmap.Create;
+    TempStream := TMemoryStream.Create;
+    try
+      TempBmp.Width := 700;
+      TempBmp.Height := 400;
+      TempBmp.Canvas.Brush.Color := clBlack;
+      TempBmp.Canvas.Pen.Color := clBlack;
+
+      if LoadBitmap(ExtractFilePath(ParamStr(0)) + 'Tests\TestFiles\Gradient30deg.bmp', BkBmp) then
+        TempBmp.Canvas.Draw(50, 25, BkBmp);
+
+      TempBmp.Canvas.Font.Color := clYellow;
+      TempBmp.Canvas.Font.Name := 'Courier New';
+      TempBmp.Canvas.TextOut(30, 10, 'Plugin done.');
+
+      TempBmp.SaveToStream(TempStream);
+      AOnActionPlugin_SetResultImg(APluginReference, 0, 0, 0, TempStream.Memory, TempStream.Size, TempBmp.Width, TempBmp.Height);
+    finally
+      TempStream.Free;
+      TempBmp.Free;
+      BkBmp.Free;
+    end;
+  end;
+
 begin
   Result := False;
   try
     DefaultOnActionPlugin_DebugPoint := AOnActionPlugin_DebugPoint;
     DefaultPluginReference := APluginReference;
+    AddToLogCallback := AOnActionPlugin_AddToLog;
 
     if not DbgPoint('Entering ExecutePlugin', '') then     //see ClkDbgSym.ppr for expected statement formats
       Exit;
@@ -1268,7 +1371,7 @@ begin
     DbgPoint('Exiting plugin', 'done');
 
     Result := True;
-
+    //GenerateSomeResultImg; //this will overwrite the result image on Debugging tab
   except
     on E: Exception do
     begin
@@ -1276,6 +1379,11 @@ begin
       ResValue := 'Plugin exception: "' + E.Message + '".';
       AOnActionPlugin_SetTemplateVar(APluginReference, @ResName[1], @ResValue[1]);
     end;
+  end;
+
+  try
+    AddToLog('Done executing plugin. Result = ' + BoolToStr(Result, 'OK', 'Error'));
+  except
   end;
 end;
 
