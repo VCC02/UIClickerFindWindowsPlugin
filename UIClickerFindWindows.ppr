@@ -958,6 +958,7 @@ function ExecutePlugin(APluginReference: Pointer;
 
                        AOnActionPlugin_GetActionCount: TOnActionPlugin_GetActionCount;
                        AOnActionPlugin_GetActionInfoByIndex: TOnActionPlugin_GetActionInfoByIndex;
+                       AOnActionPlugin_GetActionContentByIndex: TOnActionPlugin_GetActionContentByIndex;
                        AOnActionPlugin_ExecuteAction: TOnActionPlugin_ExecuteAction;
                        AOnActionPlugin_GetAllTemplateVars: TOnActionPlugin_GetAllTemplateVars;
                        AOnActionPlugin_SetTemplateVar: TOnActionPlugin_SetTemplateVar;
@@ -965,7 +966,8 @@ function ExecutePlugin(APluginReference: Pointer;
                        AOnActionPlugin_AddToLog: TOnActionPlugin_AddToLog;
                        AOnActionPlugin_SetResultImg: TOnActionPlugin_SetResultImg;
                        AOnActionPlugin_LoadBitmap: TOnActionPlugin_LoadBitmap;
-                       AOnActionPlugin_GetAllowedFilesInfo: TOnActionPlugin_GetAllowedFilesInfo): Boolean; cdecl;
+                       AOnActionPlugin_GetAllowedFilesInfo: TOnActionPlugin_GetAllowedFilesInfo;
+                       AOnActionPlugin_SetBitmap: TOnActionPlugin_SetBitmap): Boolean; cdecl;
 var
   ActionCount, i, j, k: Integer;
   ActionType: TClkAction;
