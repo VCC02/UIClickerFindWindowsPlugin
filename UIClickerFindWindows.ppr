@@ -1095,6 +1095,30 @@ var
     end;
   end;
 
+  procedure SaveBitmapToExtRenderingInMemFS;
+  var
+    Bmp: TBitmap;
+    MemStream: TMemoryStream;
+  begin
+    Bmp := TBitmap.Create;
+    MemStream := TMemoryStream.Create;
+    try
+      Bmp.Width := 150;
+      Bmp.Height := 180;
+      Bmp.PixelFormat := pf24bit;
+      Bmp.Canvas.Brush.Color := clBlack;
+      Bmp.Canvas.Font.Color := clYellow;
+      Bmp.Canvas.TextOut(50, 60, 'Generated bitmap');
+      Bmp.Canvas.TextOut(50, 130, 'Generated bitmap');
+      bmp.SaveToStream(MemStream);
+
+      AOnActionPlugin_SetBitmap(APluginReference, @string('GenBmp.bmp')[1], MemStream.Memory, MemStream.Size, Bmp.Width, Bmp.Height);
+    finally
+      Bmp.Free;
+      MemStream.Free;
+    end;
+  end;
+
 begin
   Result := False;
   try
