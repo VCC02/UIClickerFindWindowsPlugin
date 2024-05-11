@@ -30,8 +30,9 @@ library UIClickerFindWindows;
 {$ENDIF}
 
 uses
-  {Windows,} Interfaces, Classes, SysUtils, Graphics,
-  ClickerUtils, ClickerActionPlugins, DllUtils, ClickerFileProviderUtils;
+  {Windows,} Interfaces, Classes, SysUtils, Graphics, ImgList,
+  ClickerUtils, ClickerActionPlugins, DllUtils, ClickerFileProviderUtils,
+FindWindowsDM;
 
 
 type
@@ -60,6 +61,18 @@ const
   CBorderThicknessPropertyName = 'BorderThickness';
   CMatchWindowEdgesPropertyName = 'MatchWindowEdges';
 
+  CFindSubControlTopLeftCorner_PropIndex = 0;
+  CFindSubControlBotLeftCorner_PropIndex = 1;
+  CFindSubControlTopRightCorner_PropIndex = 2;
+  CFindSubControlBotRightCorner_PropIndex = 3;
+  CFindSubControlLeftEdge_PropIndex = 4;
+  CFindSubControlTopEdge_PropIndex = 5;
+  CFindSubControlRightEdge_PropIndex = 6;
+  CFindSubControlBottomEdge_PropIndex = 7;
+  CParentFindControl_PropIndex = 8;
+  CBorderThickness_PropIndex = 9;
+  CMatchWindowEdges_PropIndex = 10;
+
   CRequiredSubControlPropertyNames: array[0..CPropertiesCount - 1] of string = (  //these are the expected FindSubControl property names, configured in plugin properties
     'FindSubControlTopLeftCorner',
     'FindSubControlBotLeftCorner',
@@ -86,24 +99,72 @@ const
     'TextWithArrow',
     'TextWithArrow',
 
-    'TextWithArrow',
-    'Text',
-    'BooleanCombo'
+    'TextWithArrow',      //CParentFindControlPropertyName
+    'SpinText',           //CBorderThicknessPropertyName
+    'BooleanCombo'        //CMatchWindowEdgesPropertyName
+  );
+
+  CRequiredSubControlPropertyDataTypes: array[0..CPropertiesCount - 1] of string = (
+    CDTString,  //'FindSubControlTopLeftCorner',
+    CDTString,  //'FindSubControlBotLeftCorner',
+    CDTString,  //'FindSubControlTopRightCorner',
+    CDTString,  //'FindSubControlBotRightCorner',
+    CDTString,  //'FindSubControlLeftEdge',
+    CDTString,  //'FindSubControlTopEdge',
+    CDTString,  //'FindSubControlRightEdge',
+    CDTString,  //'FindSubControlBottomEdge',
+
+    CDTString,  //CParentFindControlPropertyName,  //This action is called before every FindSubControl action above. It can also be a CallTemplate action (with FindControl and FindSubControl). It is required to prepare the $Control_Left$ and $Control_Top$ vars for every FindSubControl.
+    CDTInteger,  //CBorderThicknessPropertyName,
+    CDTBool  //CMatchWindowEdgesPropertyName
+  );
+
+  CPluginEnumCounts: array[0..CPropertiesCount - 1] of Integer = (
+    0,  //'FindSubControlTopLeftCorner',
+    0,  //'FindSubControlBotLeftCorner',
+    0,  //'FindSubControlTopRightCorner',
+    0,  //'FindSubControlBotRightCorner',
+    0,  //'FindSubControlLeftEdge',
+    0,  //'FindSubControlTopEdge',
+    0,  //'FindSubControlRightEdge',
+    0,  //'FindSubControlBottomEdge',
+
+    0,  //CParentFindControlPropertyName,  //This action is called before every FindSubControl action above. It can also be a CallTemplate action (with FindControl and FindSubControl). It is required to prepare the $Control_Left$ and $Control_Top$ vars for every FindSubControl.
+    0,  //CBorderThicknessPropertyName,
+    0  //CMatchWindowEdgesPropertyName
+  );
+
+  CPluginEnumStrings: array[0..CPropertiesCount - 1] of string = (
+    '',  //'FindSubControlTopLeftCorner',
+    '',  //'FindSubControlBotLeftCorner',
+    '',  //'FindSubControlTopRightCorner',
+    '',  //'FindSubControlBotRightCorner',
+    '',  //'FindSubControlLeftEdge',
+    '',  //'FindSubControlTopEdge',
+    '',  //'FindSubControlRightEdge',
+    '',  //'FindSubControlBottomEdge',
+
+    '',  //CParentFindControlPropertyName,  //This action is called before every FindSubControl action above. It can also be a CallTemplate action (with FindControl and FindSubControl). It is required to prepare the $Control_Left$ and $Control_Top$ vars for every FindSubControl.
+    '',  //CBorderThicknessPropertyName,
+    ''  //CMatchWindowEdgesPropertyName
+  );
+
+  CPluginHints: array[0..CPropertiesCount - 1] of string = (
+    'Name of a FindSubControl action, called by this plugin, to find the Top-Left corner of all windows.',  //'FindSubControlTopLeftCorner',
+    'Name of a FindSubControl action, called by this plugin, to find the Bot-Left corner of all windows.',  //'FindSubControlBotLeftCorner',
+    'Name of a FindSubControl action, called by this plugin, to find the Top-Right corner of all windows.',  //'FindSubControlTopRightCorner',
+    'Name of a FindSubControl action, called by this plugin, to find the Bot-Right corner of all windows.',  //'FindSubControlBotRightCorner',
+    'Name of a FindSubControl action, called by this plugin, to find the Left edge of all windows.',  //'FindSubControlLeftEdge',
+    'Name of a FindSubControl action, called by this plugin, to find the Top edge of all windows.',  //'FindSubControlTopEdge',
+    'Name of a FindSubControl action, called by this plugin, to find the Right edge of all windows.',  //'FindSubControlRightEdge',
+    'Name of a FindSubControl action, called by this plugin, to find the Bottom edge of all windows.',  //'FindSubControlBottomEdge',
+
+    'Name of a FindControl action, called by this plugin, to prepare the control handle, required by the FindSubControl actions.',  //CParentFindControlPropertyName,  //This action is called before every FindSubControl action above. It can also be a CallTemplate action (with FindControl and FindSubControl). It is required to prepare the $Control_Left$ and $Control_Top$ vars for every FindSubControl.
+    'Number of pixels, for width or height (or both), to crop from a window (corner or edge), to verify if it matches.',  //CBorderThicknessPropertyName,
+    'If True, it also verifies window edges in addition to corners. If False, FindSubControl actions, for edges, are not called.'  //CMatchWindowEdgesPropertyName
   );
 
   CDefaultBorderThickness = 6;
-
-  CFindSubControlTopLeftCorner_PropIndex = 0;
-  CFindSubControlBotLeftCorner_PropIndex = 1;
-  CFindSubControlTopRightCorner_PropIndex = 2;
-  CFindSubControlBotRightCorner_PropIndex = 3;
-  CFindSubControlLeftEdge_PropIndex = 4;
-  CFindSubControlTopEdge_PropIndex = 5;
-  CFindSubControlRightEdge_PropIndex = 6;
-  CFindSubControlBottomEdge_PropIndex = 7;
-  CParentFindControl_PropIndex = 8;
-  CBorderThickness_PropIndex = 9;
-  CMatchWindowEdges_PropIndex = 10;
 
   CActionPlugin_ExecutionResultVar_XOffset = '$DecodedWindows_XOffset$';
   CActionPlugin_ExecutionResultVar_YOffset = '$DecodedWindows_YOffset$';
@@ -162,17 +223,61 @@ begin
 end;
 
 
-procedure GetListOfProperties(AListOfProperties: Pointer; AListOfPropertiesLen: PDWord); cdecl;
+function FillInPropertyDetails: string;
+var
+  i: Integer;
+begin
+  Result := '';
+
+  for i := 0 to CPropertiesCount - 1 do
+    Result := Result + CRequiredSubControlPropertyNames[i] + '=' + CRequiredSubControlPropertyTypes[i] + #8#7 +
+                       'DataType' + '=' + CRequiredSubControlPropertyDataTypes[i] + #8#7 +
+                       'EnumCounts' + '=' + IntToStr(CPluginEnumCounts[i]) + #8#7 +
+                       'EnumStrings' + '=' + CPluginEnumStrings[i] + #8#7 +
+                       'Hint' + '=' + CPluginHints[i] + #8#7 +
+                       #13#10;
+end;
+
+
+procedure GetListOfProperties(APluginReference: Pointer;                 //UIClicker passes the plugin reference to the plugin, then the plugin calls some callbacks with that reference
+                              AListOfProperties: Pointer;
+                              AListOfPropertiesLen: PDWord;
+                              AOnActionPlugin_UpdatePropertyIcons: TOnActionPlugin_UpdatePropertyIcons); cdecl;
 var
   Properties: string;
   i: Integer;
+  TempMemStream: TMemoryStream;
+  Bmp: TBitmap;
 begin
-  Properties := '';
-
-  for i := 0 to CPropertiesCount - 1 do
-    Properties := Properties + CRequiredSubControlPropertyNames[i] + '=' + CRequiredSubControlPropertyTypes[i] + #13#10;
-
+  Properties := FillInPropertyDetails;
   AListOfPropertiesLen^ := SetPointedContentFromString(Properties, AListOfProperties);
+
+  dmProperties := TdmProperties.Create(nil);
+  try
+    for i := 0 to CPropertiesCount - 1 do
+    begin
+      TempMemStream := TMemoryStream.Create;
+      Bmp := TBitmap.Create;
+      try
+        Bmp.PixelFormat := pf24bit;
+        Bmp.Width := dmProperties.imglstProperties.Width;
+        Bmp.Height := dmProperties.imglstProperties.Height;
+        Bmp.Canvas.Pen.Color := clWhite;
+        Bmp.Canvas.Brush.Color := clWhite;
+        Bmp.Canvas.Rectangle(0, 0, Bmp.Width, Bmp.Height);
+
+        dmProperties.imglstProperties.Draw(Bmp.Canvas, 0, 0, i, dsNormal, itImage);
+        Bmp.SaveToStream(TempMemStream);
+
+        AOnActionPlugin_UpdatePropertyIcons(APluginReference, TempMemStream.Memory, TempMemStream.Size);
+      finally
+        TempMemStream.Free;
+        Bmp.Free;
+      end;
+    end;
+  finally
+    dmProperties.Free;
+  end;
 end;
 
 
@@ -967,7 +1072,9 @@ function ExecutePlugin(APluginReference: Pointer;
                        AOnActionPlugin_SetResultImg: TOnActionPlugin_SetResultImg;
                        AOnActionPlugin_LoadBitmap: TOnActionPlugin_LoadBitmap;
                        AOnActionPlugin_GetAllowedFilesInfo: TOnActionPlugin_GetAllowedFilesInfo;
-                       AOnActionPlugin_SetBitmap: TOnActionPlugin_SetBitmap): Boolean; cdecl;
+                       AOnActionPlugin_SetBitmap: TOnActionPlugin_SetBitmap;
+                       AOnActionPlugin_Screenshot: TOnActionPlugin_Screenshot
+                       ): Boolean; cdecl;
 var
   ActionCount, i, j, k: Integer;
   ActionType: TClkAction;
