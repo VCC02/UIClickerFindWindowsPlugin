@@ -164,6 +164,21 @@ const
     'If True, it also verifies window edges in addition to corners. If False, FindSubControl actions, for edges, are not called.'  //CMatchWindowEdgesPropertyName
   );
 
+  CPropertyEnabled: array[0..CPropertiesCount - 1] of string = (  // The 'PropertyValue[<index>]' replacement uses indexes from the following array only. It doesn't count fixed properties.
+    '',  //'FindSubControlTopLeftCorner',                         // If empty string, the property is unconditionally enabled. For available operators, see CComp constans in ClickerUtils.pas.
+    '',  //'FindSubControlBotLeftCorner',
+    '',  //'FindSubControlTopRightCorner',
+    '',  //'FindSubControlBotRightCorner',
+    'PropertyValue[10]==True',  //'FindSubControlLeftEdge',
+    'PropertyValue[10]==True',  //'FindSubControlTopEdge',
+    'PropertyValue[10]==True',  //'FindSubControlRightEdge',
+    'PropertyValue[10]==True',  //'FindSubControlBottomEdge',
+
+    '',  //CParentFindControlPropertyName,  //This action is called before every FindSubControl action above. It can also be a CallTemplate action (with FindControl and FindSubControl). It is required to prepare the $Control_Left$ and $Control_Top$ vars for every FindSubControl.
+    '',  //CBorderThicknessPropertyName,
+    ''  //CMatchWindowEdgesPropertyName
+  );
+
   CDefaultBorderThickness = 6;
 
   CActionPlugin_ExecutionResultVar_XOffset = '$DecodedWindows_XOffset$';
@@ -235,6 +250,7 @@ begin
                        'EnumCounts' + '=' + IntToStr(CPluginEnumCounts[i]) + #8#7 +
                        'EnumStrings' + '=' + CPluginEnumStrings[i] + #8#7 +
                        'Hint' + '=' + CPluginHints[i] + #8#7 +
+                       'Enabled' + '=' + CPropertyEnabled[i] + #8#7 +
                        #13#10;
 end;
 
