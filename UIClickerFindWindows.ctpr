@@ -52,7 +52,12 @@
         <FRMtype Value="300"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="dmProperties"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="DataModule"/>
+      </Unit>
+      <Unit>
+        <Filename Value="FindWindowsPluginProperties.pas"/>
+        <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
   </ProjectOptions>
