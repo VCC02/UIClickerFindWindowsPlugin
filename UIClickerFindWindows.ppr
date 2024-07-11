@@ -946,7 +946,8 @@ function ExecutePlugin(APluginReference: Pointer;
                        AOnActionPlugin_LoadBitmap: TOnActionPlugin_LoadBitmap;
                        AOnActionPlugin_GetAllowedFilesInfo: TOnActionPlugin_GetAllowedFilesInfo;
                        AOnActionPlugin_SetBitmap: TOnActionPlugin_SetBitmap;
-                       AOnActionPlugin_Screenshot: TOnActionPlugin_Screenshot
+                       AOnActionPlugin_Screenshot: TOnActionPlugin_Screenshot;
+                       AOnActionPlugin_CheckStopAllActionsOnDemand: TOnActionPlugin_CheckStopAllActionsOnDemand
                        ): Boolean; cdecl;
 var
   ActionCount, i, j, k: Integer;
@@ -1183,6 +1184,12 @@ begin
                 //if not DbgPoint('Calling FindControl or CallTemplate (corners)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex]) then
                 //  Exit;
 
+                if AOnActionPlugin_CheckStopAllActionsOnDemand(APluginReference) then
+                begin
+                  SetTemplateVar(CActionPlugin_ExecutionResultErrorVar, 'Plugin stopped on demand.');
+                  Exit;
+                end;
+
                 if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
                   if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
                   begin
@@ -1255,6 +1262,12 @@ begin
                   begin
                     //if not DbgPoint('Calling FindControl or CallTemplate (edges)', PluginSettings.ValueFromIndex[CParentFindControl_PropIndex]) then
                     //  Exit;
+
+                    if AOnActionPlugin_CheckStopAllActionsOnDemand(APluginReference) then
+                    begin
+                      SetTemplateVar(CActionPlugin_ExecutionResultErrorVar, 'Plugin stopped on demand.');
+                      Exit;
+                    end;
 
                     if PluginSettings.ValueFromIndex[CParentFindControl_PropIndex] <> '' then
                       if not AOnActionPlugin_ExecuteAction(APluginReference, @PluginSettings.ValueFromIndex[CParentFindControl_PropIndex][1]) then  //call FindControl or CallTemplate, before each FindSubControl
