@@ -948,7 +948,8 @@ function ExecutePlugin(APluginReference: Pointer;
                        AOnActionPlugin_SetBitmap: TOnActionPlugin_SetBitmap;
                        AOnActionPlugin_Screenshot: TOnActionPlugin_Screenshot;
                        AOnActionPlugin_CheckStopAllActionsOnDemand: TOnActionPlugin_CheckStopAllActionsOnDemand;
-                       AOnActionPlugin_InMemFS: TOnActionPlugin_InMemFS
+                       AOnActionPlugin_InMemFS: TOnActionPlugin_InMemFS;
+                       AOnActionPlugin_AppProcMsg: TOnActionPlugin_AppProcMsg
                        ): Boolean; cdecl;
 var
   ActionCount, i, j, k: Integer;
@@ -1427,6 +1428,7 @@ end;
 
 function EditProperty(APluginReference: Pointer;
                       AOnActionPlugin_InMemFS: TOnActionPlugin_InMemFS;
+                      AOnActionPlugin_AppProcMsg: TOnActionPlugin_AppProcMsg;
                       APropertyIndex: Integer;
                       ACurrentValue: Pointer;
                       ANewValue: Pointer;
@@ -1438,18 +1440,9 @@ begin
 
   NewValue := CurrentValue;
 
-  //Application.Initialize;
-  //FExHandler := TExHandler.Create;
-  try
-    //ExceptProc := @CatchUnhandledException;
-    //Application.OnException := FExHandler.CustomExceptionHandler;
-
-    //open editor here
-    //Result := EditCustomFontProfilesProperty(APluginReference, AOnActionPlugin_InMemFS, APropertyIndex, CurrentValue, NewValue);
-    ALenOfNewValue^ := SetPointedContentFromString(NewValue, ANewValue);
-  finally
-    //FExHandler.Free;
-  end;
+  //open editor here
+  //Result := EditCustomFontProfilesProperty(APluginReference, AOnActionPlugin_InMemFS, APropertyIndex, CurrentValue, NewValue);
+  ALenOfNewValue^ := SetPointedContentFromString(NewValue, ANewValue);
 end;
 
 
